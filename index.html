@@ -2,18 +2,24 @@
 <html lang="da">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#071c3f" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+  />
+
+  <meta name="theme-color" content="#061a35" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Marvin mod verden" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <title>Marvin mod verden</title>
+
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="assets/icon-192.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
+
+  <title>Marvin mod verden</title>
 </head>
+
 <body>
   <div id="game-shell">
     <div id="game-container"></div>
@@ -21,10 +27,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script src="game.js"></script>
+
   <script>
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js").catch(() => {});
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("service-worker.js").catch(function () {
+          // Spillet virker stadig uden service worker.
+        });
       });
     }
   </script>
