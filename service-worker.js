@@ -1,27 +1,25 @@
-const CACHE_VERSION = "marvin-mod-verden-touchfix2";
-
-self.addEventListener("install", function (event) {
+self.addEventListener("install", function () {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", function (event) {
   event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(
-        keys.map(function (key) {
-          return caches.delete(key);
-        })
-      );
-    }).then(function () {
-      return self.clients.claim();
-    })
+    caches.keys()
+      .then(function (keys) {
+        return Promise.all(
+          keys.map(function (key) {
+            return caches.delete(key);
+          })
+        );
+      })
+      .then(function () {
+        return self.clients.claim();
+      })
   );
 });
 
 self.addEventListener("fetch", function (event) {
   event.respondWith(
-    fetch(event.request, { cache: "no-store" }).catch(function () {
-      return caches.match(event.request);
-    })
+    fetch(event.request, { cache: "no-store" })
   );
 });
