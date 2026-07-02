@@ -1,3 +1,4 @@
+alert("DET ER DEN RIGTIGE GAME.JS - IPHONE FIX 3");
 // Marvin mod verden
 // Touchfix 2:
 // - Phaser.Scale.RESIZE: canvas følger iPhone-skærmens faktiske størrelse
