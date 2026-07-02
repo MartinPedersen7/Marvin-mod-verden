@@ -1,38 +1,59 @@
-# Marvin mod verden - Version 3
+# Marvin mod verden - Version 4
 
 Komplet mobilvenlig browser-spilpakke lavet med HTML, CSS, JavaScript og Phaser.js via CDN.
 
-## Sådan tester du
-1. Pak ZIP-filen ud.
-2. Åbn mappen `marvin-mod-verden-v3` i Visual Studio Code.
-3. Højreklik på `index.html`.
-4. Vælg `Open with Live Server`.
+## Nyt i version 4
 
-## Styring
+- PWA/app-installation via `manifest.json` og `service-worker.js`
+- App-ikon med Marvin på græsbane
+- Højere/tallere spilleformat: `480 x 1040`, bedre til moderne iPhones
+- Multitouch rettet, så man kan styre, skyde og bruge SUPER samtidig
+- Separat SUPER-knap
+- Tyndere og hurtigere Marvin-laser
+- Bedre oprydning af skud/fjender, så gamle prikker ikke bliver hængende
+- Forbedrede fodboldfjender
+- Gennemsigtige Marvin- og boss-assets uden fast sort baggrund
+- Sværhedsgrad: NEM, NORMAL og KAOS
+- Førstegangs-tutorial
+- Upgrade-valg efter bosskampe
+- Score summary og kopier-score-knap
+- Lyd ON/OFF
 
-### Mobil
-- Joystick til venstre: styr Marvin side til side.
-- SKYD-knap til højre: hold nede for at skyde.
-- SUPER-knap over SKYD: rydder projektiler og skader bosser.
-- II-knap øverst til højre: pause.
+## Filstruktur
 
-### Computer
-- A / venstre pil: venstre.
-- D / højre pil: højre.
-- SPACE: skyd.
-- E: SUPER.
-- P: pause.
+```text
+index.html
+style.css
+game.js
+manifest.json
+service-worker.js
+README.md
+assets/
+```
 
-## Nyt i version 3
-- Rettet projektiler fra Marvin, så de skyder tydeligt op ad banen.
-- Tyndere og pænere laserskud.
-- Fjender og fjendeskud ryddes bedre op, så der ikke ligger hvide prikker tilbage.
-- Bedre fodbold-fjender.
-- Separat SUPER-knap.
-- Sværhedsgrad: NEM, NORMAL og KAOS.
-- Lyd ON/OFF i menuen.
-- Tydeligere bossfaser.
-- Combo-tekst og skadefeedback.
-- Upgrade-valg mellem levels.
-- Mere sikker restart og timer-cleanup.
-- Marvin og bosser bruger PNG-assets med gennemsigtighed.
+## Sådan tester du lokalt
+
+1. Åbn mappen i Visual Studio Code.
+2. Højreklik på `index.html`.
+3. Vælg `Open with Live Server`.
+
+## Sådan udgiver du på GitHub Pages
+
+1. Sørg for at `index.html`, `game.js`, `style.css`, `manifest.json` og `assets/` ligger direkte i repoets rod.
+2. Commit og push til `main`.
+3. Gå til `Settings -> Pages`.
+4. Vælg enten:
+   - `Deploy from a branch`, branch `main`, folder `/root`, eller
+   - `GitHub Actions` med Static HTML workflow.
+
+## Mobil-installation
+
+Åbn GitHub Pages-linket på mobilen.
+
+### iPhone
+
+Åbn i Safari -> Del -> Føj til hjemmeskærm.
+
+### Android
+
+Åbn i Chrome -> menu med tre prikker -> Føj til startskærm / Installer app.
