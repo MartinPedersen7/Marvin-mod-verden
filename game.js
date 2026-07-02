@@ -1,12 +1,9 @@
 // Marvin mod verden
-// Mobilfix-version:
-// - Format: 480 x 1040, bedre til moderne iPhone
-// - Multitouch fix: joystick og skydeknap virker samtidig
-// - Tyndere laser-skud
-// - Bedre oprydning af skud og bolde
-
-const GAME_WIDTH = 480;
-const GAME_HEIGHT = 1040;
+// Touchfix 2:
+// - Phaser.Scale.RESIZE: canvas følger iPhone-skærmens faktiske størrelse
+// - Native iPhone multitouch: venstre finger styrer, højre finger skyder samtidig
+// - Ingen Phaser-touch-knap-konflikt
+// - Skud bevæger sig tydeligt opad
 
 class GameScene extends Phaser.Scene {
   constructor() {
@@ -26,7 +23,7 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.input.addPointer(5);
+    this.input.addPointer(8);
     this.input.topOnly = false;
 
     this.createFallbackTextures();
@@ -51,11 +48,11 @@ class GameScene extends Phaser.Scene {
     this.superReady = true;
     this.superCooldownUntil = 0;
 
-    this.joystickPointerId = null;
+    this.joystickTouchId = null;
     this.joystickValue = 0;
 
-    this.shootPointerIds = new Set();
-    this.superPointerIds = new Set();
+    this.shootTouchIds = new Set();
+    this.superTouchIds = new Set();
 
     this.keyboardShootHeld = false;
     this.shootHeld = false;
@@ -80,8 +77,20 @@ class GameScene extends Phaser.Scene {
     this.createControls();
     this.createKeyboard();
     this.createCollisions();
+    this.installNativeTouchControls();
+
+    this.scale.on("resize", this.handleResize, this);
+    this.handleResize({ width: this.W(), height: this.H() });
 
     this.showStartMenu();
+  }
+
+  W() {
+    return this.scale.width;
+  }
+
+  H() {
+    return this.scale.height;
   }
 
   createFallbackTextures() {
@@ -130,52 +139,35 @@ class GameScene extends Phaser.Scene {
     if (!this.textures.exists("fallbackBg")) {
       g.clear();
       g.fillStyle(0x073c1e, 1);
-      g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      g.fillRect(0, 0, 480, 1040);
       g.lineStyle(3, 0xffffff, 0.24);
-      g.strokeRect(42, 90, GAME_WIDTH - 84, GAME_HEIGHT - 150);
-      g.lineBetween(GAME_WIDTH / 2, 90, GAME_WIDTH / 2, GAME_HEIGHT - 60);
-      g.strokeCircle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 95);
-      g.generateTexture("fallbackBg", GAME_WIDTH, GAME_HEIGHT);
+      g.strokeRect(42, 90, 396, 860);
+      g.lineBetween(240, 90, 240, 950);
+      g.strokeCircle(240, 520, 95);
+      g.generateTexture("fallbackBg", 480, 1040);
     }
 
     g.destroy();
   }
 
   createBackground() {
-    const bgKey = this.textures.exists("stadiumBg") ? "stadiumBg" : "fallbackBg";
+    const key = this.textures.exists("stadiumBg") ? "stadiumBg" : "fallbackBg";
 
-    this.bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, bgKey);
+    this.bg = this.add.image(this.W() / 2, this.H() / 2, key);
     this.bg.setDepth(-100);
 
-    const scale = Math.max(GAME_WIDTH / this.bg.width, GAME_HEIGHT / this.bg.height);
-    this.bg.setScale(scale);
-
-    this.bgOverlay = this.add.rectangle(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2,
-      GAME_WIDTH,
-      GAME_HEIGHT,
-      0x00142b,
-      0.16
-    );
+    this.bgOverlay = this.add.rectangle(this.W() / 2, this.H() / 2, this.W(), this.H(), 0x00142b, 0.16);
     this.bgOverlay.setDepth(-99);
 
-    this.bgDarkener = this.add.rectangle(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2,
-      GAME_WIDTH,
-      GAME_HEIGHT,
-      0x000000,
-      0.10
-    );
+    this.bgDarkener = this.add.rectangle(this.W() / 2, this.H() / 2, this.W(), this.H(), 0x000000, 0.10);
     this.bgDarkener.setDepth(-98);
 
     this.stars = [];
 
-    for (let i = 0; i < 48; i++) {
+    for (let i = 0; i < 55; i++) {
       const star = this.add.circle(
-        Phaser.Math.Between(0, GAME_WIDTH),
-        Phaser.Math.Between(0, GAME_HEIGHT),
+        Phaser.Math.Between(0, this.W()),
+        Phaser.Math.Between(0, this.H()),
         Phaser.Math.Between(1, 2),
         0xffffff,
         Phaser.Math.FloatBetween(0.10, 0.40)
@@ -183,19 +175,10 @@ class GameScene extends Phaser.Scene {
 
       star.setDepth(-97);
       star.speed = Phaser.Math.FloatBetween(8, 22);
-
       this.stars.push(star);
     }
 
-    this.pitchGlow = this.add.rectangle(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT - 150,
-      GAME_WIDTH,
-      190,
-      0x00ff66,
-      0.035
-    );
-
+    this.pitchGlow = this.add.rectangle(this.W() / 2, this.H() - 150, this.W(), 190, 0x00ff66, 0.035);
     this.pitchGlow.setDepth(-96);
 
     this.tweens.add({
@@ -205,6 +188,34 @@ class GameScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1
     });
+
+    this.layoutBackground();
+  }
+
+  layoutBackground() {
+    const w = this.W();
+    const h = this.H();
+
+    if (this.bg) {
+      this.bg.setPosition(w / 2, h / 2);
+      const scale = Math.max(w / this.bg.width, h / this.bg.height);
+      this.bg.setScale(scale);
+    }
+
+    if (this.bgOverlay) {
+      this.bgOverlay.setPosition(w / 2, h / 2);
+      this.bgOverlay.setSize(w, h);
+    }
+
+    if (this.bgDarkener) {
+      this.bgDarkener.setPosition(w / 2, h / 2);
+      this.bgDarkener.setSize(w, h);
+    }
+
+    if (this.pitchGlow) {
+      this.pitchGlow.setPosition(w / 2, h - 150);
+      this.pitchGlow.setSize(w, 190);
+    }
   }
 
   createGroups() {
@@ -219,7 +230,7 @@ class GameScene extends Phaser.Scene {
   createPlayer() {
     const key = this.textures.exists("marvin") ? "marvin" : "fallbackPlayer";
 
-    this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT - 185, key);
+    this.player = this.physics.add.sprite(this.W() / 2, this.H() - 185, key);
     this.player.setDepth(20);
     this.player.setCollideWorldBounds(true);
 
@@ -260,26 +271,26 @@ class GameScene extends Phaser.Scene {
       fontFamily: "Arial",
       fontSize: "12px",
       color: "#ffe891",
-      wordWrap: { width: 300 }
+      wordWrap: { width: 310 }
     }).setDepth(200);
 
-    this.statsText = this.add.text(GAME_WIDTH - 12, 12, "", {
+    this.statsText = this.add.text(this.W() - 12, 12, "", {
       fontFamily: "Arial",
       fontSize: "13px",
       color: "#ffffff",
       align: "right"
     }).setOrigin(1, 0).setDepth(200);
 
-    this.bossBarBack = this.add.rectangle(GAME_WIDTH / 2, 132, 315, 18, 0x240915, 0.9);
+    this.bossBarBack = this.add.rectangle(this.W() / 2, 132, 315, 18, 0x240915, 0.9);
     this.bossBarBack.setDepth(201);
     this.bossBarBack.setVisible(false);
 
-    this.bossBarFill = this.add.rectangle(GAME_WIDTH / 2 - 157.5, 132, 315, 18, 0x54ff8c, 1);
+    this.bossBarFill = this.add.rectangle(this.W() / 2 - 157.5, 132, 315, 18, 0x54ff8c, 1);
     this.bossBarFill.setOrigin(0, 0.5);
     this.bossBarFill.setDepth(202);
     this.bossBarFill.setVisible(false);
 
-    this.bossText = this.add.text(GAME_WIDTH / 2, 155, "", {
+    this.bossText = this.add.text(this.W() / 2, 155, "", {
       fontFamily: "Arial",
       fontSize: "14px",
       color: "#ffffff",
@@ -290,67 +301,241 @@ class GameScene extends Phaser.Scene {
   }
 
   createControls() {
-    this.joyBaseX = 82;
-    this.joyBaseY = GAME_HEIGHT - 108;
-
-    this.shootX = GAME_WIDTH - 76;
-    this.shootY = GAME_HEIGHT - 112;
-
-    this.superX = GAME_WIDTH - 76;
-    this.superY = GAME_HEIGHT - 232;
-
-    this.joyBase = this.add.circle(this.joyBaseX, this.joyBaseY, 58, 0x0b2b57, 0.30);
+    this.joyBase = this.add.circle(82, this.H() - 108, 58, 0x0b2b57, 0.30);
     this.joyBase.setStrokeStyle(3, 0x9fe0ff, 0.65);
     this.joyBase.setDepth(300);
 
-    this.joyKnob = this.add.circle(this.joyBaseX, this.joyBaseY, 24, 0x8bddff, 0.55);
+    this.joyKnob = this.add.circle(82, this.H() - 108, 24, 0x8bddff, 0.55);
     this.joyKnob.setStrokeStyle(2, 0xffffff, 0.9);
     this.joyKnob.setDepth(301);
 
-    this.shootButton = this.add.circle(this.shootX, this.shootY, 54, 0x165bd6, 0.38);
+    this.shootButton = this.add.circle(this.W() - 76, this.H() - 112, 54, 0x165bd6, 0.38);
     this.shootButton.setStrokeStyle(3, 0xffffff, 0.85);
     this.shootButton.setDepth(300);
 
-    this.shootLabel = this.add.text(this.shootX, this.shootY, "SKYD", {
+    this.shootLabel = this.add.text(this.W() - 76, this.H() - 112, "SKYD", {
       fontFamily: "Arial",
       fontSize: "20px",
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5).setDepth(301);
 
-    this.superButton = this.add.circle(this.superX, this.superY, 38, 0xffd15c, 0.32);
+    this.superButton = this.add.circle(this.W() - 76, this.H() - 232, 38, 0xffd15c, 0.32);
     this.superButton.setStrokeStyle(3, 0xffffff, 0.75);
     this.superButton.setDepth(300);
 
-    this.superLabel = this.add.text(this.superX, this.superY, "SUPER", {
+    this.superLabel = this.add.text(this.W() - 76, this.H() - 232, "SUPER", {
       fontFamily: "Arial",
       fontSize: "13px",
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5).setDepth(301);
 
-    this.pauseButton = this.add.circle(GAME_WIDTH - 30, 48, 19, 0x0b2b57, 0.65);
+    this.pauseButton = this.add.circle(this.W() - 30, 48, 19, 0x0b2b57, 0.65);
     this.pauseButton.setStrokeStyle(2, 0xffffff, 0.8);
     this.pauseButton.setDepth(310);
-    this.pauseButton.setInteractive();
 
-    this.pauseLabel = this.add.text(GAME_WIDTH - 30, 48, "II", {
+    this.pauseLabel = this.add.text(this.W() - 30, 48, "II", {
       fontFamily: "Arial",
       fontSize: "15px",
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5).setDepth(311);
 
-    this.pauseButton.on("pointerdown", () => {
+    this.layoutControls();
+  }
+
+  layoutControls() {
+    const w = this.W();
+    const h = this.H();
+
+    this.joyBaseX = 82;
+    this.joyBaseY = h - 108;
+
+    this.shootX = w - 76;
+    this.shootY = h - 112;
+
+    this.superX = w - 76;
+    this.superY = h - 232;
+
+    this.pauseX = w - 30;
+    this.pauseY = 48;
+
+    if (this.joyBase) this.joyBase.setPosition(this.joyBaseX, this.joyBaseY);
+    if (this.joyKnob && this.joystickTouchId === null) this.joyKnob.setPosition(this.joyBaseX, this.joyBaseY);
+
+    if (this.shootButton) this.shootButton.setPosition(this.shootX, this.shootY);
+    if (this.shootLabel) this.shootLabel.setPosition(this.shootX, this.shootY);
+
+    if (this.superButton) this.superButton.setPosition(this.superX, this.superY);
+    if (this.superLabel) this.superLabel.setPosition(this.superX, this.superY);
+
+    if (this.pauseButton) this.pauseButton.setPosition(this.pauseX, this.pauseY);
+    if (this.pauseLabel) this.pauseLabel.setPosition(this.pauseX, this.pauseY);
+
+    if (this.statsText) this.statsText.setPosition(w - 12, 12);
+
+    if (this.bossBarBack) this.bossBarBack.setPosition(w / 2, 132);
+    if (this.bossBarFill) this.bossBarFill.setPosition(w / 2 - 157.5, 132);
+    if (this.bossText) this.bossText.setPosition(w / 2, 155);
+  }
+
+  installNativeTouchControls() {
+    const canvas = this.sys.game.canvas;
+
+    const block = function (event) {
+      event.preventDefault();
+    };
+
+    canvas.addEventListener("touchstart", (event) => this.onNativeTouchStart(event), { passive: false });
+    canvas.addEventListener("touchmove", (event) => this.onNativeTouchMove(event), { passive: false });
+    canvas.addEventListener("touchend", (event) => this.onNativeTouchEnd(event), { passive: false });
+    canvas.addEventListener("touchcancel", (event) => this.onNativeTouchEnd(event), { passive: false });
+
+    document.addEventListener("gesturestart", block, { passive: false });
+    document.addEventListener("gesturechange", block, { passive: false });
+    document.addEventListener("gestureend", block, { passive: false });
+  }
+
+  getTouchPoint(touch) {
+    const canvas = this.sys.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+
+    return {
+      id: touch.identifier,
+      x: (touch.clientX - rect.left) * (this.W() / rect.width),
+      y: (touch.clientY - rect.top) * (this.H() / rect.height)
+    };
+  }
+
+  onNativeTouchStart(event) {
+    event.preventDefault();
+
+    for (const touch of event.changedTouches) {
+      const p = this.getTouchPoint(touch);
+      this.handleTouchStart(p);
+    }
+  }
+
+  onNativeTouchMove(event) {
+    event.preventDefault();
+
+    for (const touch of event.changedTouches) {
+      const p = this.getTouchPoint(touch);
+      this.handleTouchMove(p);
+    }
+  }
+
+  onNativeTouchEnd(event) {
+    event.preventDefault();
+
+    for (const touch of event.changedTouches) {
+      const p = this.getTouchPoint(touch);
+      this.handleTouchEnd(p);
+    }
+  }
+
+  handleTouchStart(pointer) {
+    if (this.isInsideCircle(pointer.x, pointer.y, this.pauseX, this.pauseY, 36)) {
       if (this.gameState === "playing") this.pauseGame();
       else if (this.gameState === "paused") this.resumeGame();
-    });
+      return;
+    }
 
-    this.input.on("pointerdown", (pointer) => this.handleTouchStart(pointer));
-    this.input.on("pointermove", (pointer) => this.handleTouchMove(pointer));
-    this.input.on("pointerup", (pointer) => this.handleTouchEnd(pointer));
-    this.input.on("pointerupoutside", (pointer) => this.handleTouchEnd(pointer));
-    this.input.on("gameout", () => this.releaseAllTouches());
+    if (this.gameState !== "playing") return;
+
+    if (this.isInsideCircle(pointer.x, pointer.y, this.joyBaseX, this.joyBaseY, 92)) {
+      this.joystickTouchId = pointer.id;
+      this.updateJoystick(pointer);
+      return;
+    }
+
+    if (this.isInsideCircle(pointer.x, pointer.y, this.shootX, this.shootY, 82)) {
+      this.shootTouchIds.add(pointer.id);
+      this.shootHeld = true;
+      if (this.shootButton) this.shootButton.setScale(0.94);
+      return;
+    }
+
+    if (this.isInsideCircle(pointer.x, pointer.y, this.superX, this.superY, 62)) {
+      this.superTouchIds.add(pointer.id);
+      if (this.superButton) this.superButton.setScale(0.94);
+      this.useSuper();
+    }
+  }
+
+  handleTouchMove(pointer) {
+    if (this.gameState !== "playing") return;
+
+    if (pointer.id === this.joystickTouchId) {
+      this.updateJoystick(pointer);
+    }
+  }
+
+  handleTouchEnd(pointer) {
+    if (pointer.id === this.joystickTouchId) {
+      this.resetJoystick();
+    }
+
+    if (this.shootTouchIds.has(pointer.id)) {
+      this.shootTouchIds.delete(pointer.id);
+
+      if (this.shootTouchIds.size === 0 && !this.keyboardShootHeld) {
+        this.shootHeld = false;
+      }
+
+      if (this.shootButton) this.shootButton.setScale(this.shootTouchIds.size > 0 ? 0.94 : 1);
+    }
+
+    if (this.superTouchIds.has(pointer.id)) {
+      this.superTouchIds.delete(pointer.id);
+      if (this.superButton) this.superButton.setScale(this.superTouchIds.size > 0 ? 0.94 : 1);
+    }
+  }
+
+  releaseAllTouches() {
+    this.joystickTouchId = null;
+    this.joystickValue = 0;
+
+    this.shootTouchIds.clear();
+    this.superTouchIds.clear();
+
+    this.shootHeld = false;
+    this.keyboardShootHeld = false;
+
+    if (this.joyKnob) this.joyKnob.setPosition(this.joyBaseX, this.joyBaseY);
+    if (this.shootButton) this.shootButton.setScale(1);
+    if (this.superButton) this.superButton.setScale(1);
+  }
+
+  updateJoystick(pointer) {
+    const dx = pointer.x - this.joyBaseX;
+    const dy = pointer.y - this.joyBaseY;
+
+    const maxDist = 40;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const clamped = Math.min(distance, maxDist);
+    const angle = Math.atan2(dy, dx);
+
+    this.joyKnob.x = this.joyBaseX + Math.cos(angle) * clamped;
+    this.joyKnob.y = this.joyBaseY + Math.sin(angle) * clamped;
+
+    this.joystickValue = Phaser.Math.Clamp(dx / maxDist, -1, 1);
+  }
+
+  resetJoystick() {
+    this.joystickTouchId = null;
+    this.joystickValue = 0;
+
+    if (this.joyKnob) {
+      this.joyKnob.setPosition(this.joyBaseX, this.joyBaseY);
+    }
+  }
+
+  isInsideCircle(x, y, cx, cy, radius) {
+    const dx = x - cx;
+    const dy = y - cy;
+    return dx * dx + dy * dy <= radius * radius;
   }
 
   createKeyboard() {
@@ -377,6 +562,26 @@ class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.powerups, this.collectPowerup, null, this);
   }
 
+  handleResize() {
+    const w = this.W();
+    const h = this.H();
+
+    this.cameras.main.setSize(w, h);
+    this.physics.world.setBounds(0, 0, w, h);
+
+    this.layoutBackground();
+    this.layoutControls();
+
+    if (this.player) {
+      this.player.setCollideWorldBounds(true);
+      this.player.x = Phaser.Math.Clamp(this.player.x, 40, w - 40);
+
+      if (this.gameState === "menu") {
+        this.player.setPosition(w / 2, h - 185);
+      }
+    }
+  }
+
   showStartMenu() {
     this.gameState = "menu";
     this.physics.pause();
@@ -385,10 +590,13 @@ class GameScene extends Phaser.Scene {
 
     this.menuContainer = this.add.container(0, 0).setDepth(600);
 
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 420, 540, 0x000000, 0.76);
+    const w = this.W();
+    const h = this.H();
+
+    const panel = this.add.rectangle(w / 2, h / 2, Math.min(420, w - 28), 540, 0x000000, 0.76);
     panel.setStrokeStyle(3, 0x7ed6ff, 0.45);
 
-    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 185, "MARVIN\nMOD VERDEN", {
+    const title = this.add.text(w / 2, h / 2 - 185, "MARVIN\nMOD VERDEN", {
       fontFamily: "Arial",
       fontSize: "36px",
       color: "#ffffff",
@@ -397,30 +605,25 @@ class GameScene extends Phaser.Scene {
       lineSpacing: -8
     }).setOrigin(0.5);
 
-    const sub = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 92, "Mobilspil på Tved Stadion", {
+    const sub = this.add.text(w / 2, h / 2 - 92, "Mobilspil på Tved Stadion", {
       fontFamily: "Arial",
       fontSize: "17px",
       color: "#bee4ff",
       align: "center"
     }).setOrigin(0.5);
 
-    const statText = this.add.text(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2 - 22,
-      `Highscore: ${this.highScore}\nSejre: ${this.totalWins}`,
-      {
-        fontFamily: "Arial",
-        fontSize: "18px",
-        color: "#ffe891",
-        align: "center",
-        lineSpacing: 5
-      }
-    ).setOrigin(0.5);
+    const statText = this.add.text(w / 2, h / 2 - 22, `Highscore: ${this.highScore}\nSejre: ${this.totalWins}`, {
+      fontFamily: "Arial",
+      fontSize: "18px",
+      color: "#ffe891",
+      align: "center",
+      lineSpacing: 5
+    }).setOrigin(0.5);
 
-    const startButton = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 88, 230, 50, "START SPIL");
+    const startButton = this.makeButton(w / 2, h / 2 + 88, 230, 50, "START SPIL");
     startButton.bg.on("pointerdown", () => this.startGame());
 
-    const howButton = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 154, 250, 46, "SÅDAN SPILLER DU");
+    const howButton = this.makeButton(w / 2, h / 2 + 154, 250, 46, "SÅDAN SPILLER DU");
     howButton.bg.on("pointerdown", () => this.showHowTo());
 
     this.menuContainer.add([
@@ -438,36 +641,37 @@ class GameScene extends Phaser.Scene {
   showHowTo() {
     if (this.howToContainer) this.howToContainer.destroy(true);
 
+    const w = this.W();
+    const h = this.H();
+
     this.howToContainer = this.add.container(0, 0).setDepth(650);
 
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 420, 500, 0x02101f, 0.94);
+    const panel = this.add.rectangle(w / 2, h / 2, Math.min(420, w - 28), 500, 0x02101f, 0.94);
     panel.setStrokeStyle(2, 0x8bd8ff, 0.65);
 
-    const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 180, "SÅDAN SPILLER DU", {
+    const title = this.add.text(w / 2, h / 2 - 180, "SÅDAN SPILLER DU", {
       fontFamily: "Arial",
       fontSize: "28px",
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5);
 
-    const body = this.add.text(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2 - 20,
+    const body = this.add.text(w / 2, h / 2 - 20,
       "• Venstre finger: joystick.\n\n" +
-        "• Højre finger: hold SKYD nede.\n\n" +
-        "• SUPER-knappen er over skydeknappen.\n\n" +
-        "• Du kan nu bevæge dig og skyde samtidig.\n\n" +
-        "• Saml powerups og besejr alle bosser.",
+      "• Højre finger: hold SKYD nede.\n\n" +
+      "• SUPER-knappen er over skydeknappen.\n\n" +
+      "• Du kan bevæge dig og skyde samtidig.\n\n" +
+      "• Saml powerups og besejr alle bosser.",
       {
         fontFamily: "Arial",
         fontSize: "18px",
         color: "#dcecff",
-        wordWrap: { width: 340 },
+        wordWrap: { width: Math.min(340, w - 70) },
         lineSpacing: 6
       }
     ).setOrigin(0.5);
 
-    const close = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 190, 150, 44, "LUK");
+    const close = this.makeButton(w / 2, h / 2 + 190, 150, 44, "LUK");
     close.bg.on("pointerdown", () => {
       this.howToContainer.destroy(true);
       this.howToContainer = null;
@@ -518,6 +722,7 @@ class GameScene extends Phaser.Scene {
     this.wave = 0;
     this.hitsTaken = 0;
 
+    this.lastShotAt = 0;
     this.doubleLaserUntil = 0;
     this.slowMotionUntil = 0;
     this.invincibleUntil = 0;
@@ -530,7 +735,7 @@ class GameScene extends Phaser.Scene {
     this.bossActive = false;
     this.waitingForNextWave = false;
 
-    this.player.setPosition(GAME_WIDTH / 2, GAME_HEIGHT - 185);
+    this.player.setPosition(this.W() / 2, this.H() - 185);
     this.player.setVelocity(0, 0);
     this.player.setActive(true);
     this.player.setVisible(true);
@@ -580,9 +785,9 @@ class GameScene extends Phaser.Scene {
 
     this.pauseContainer = this.add.container(0, 0).setDepth(700);
 
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 360, 190, 0x000000, 0.82);
+    const panel = this.add.rectangle(this.W() / 2, this.H() / 2, 360, 190, 0x000000, 0.82);
 
-    const text = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, "PAUSE\nTryk P eller II", {
+    const text = this.add.text(this.W() / 2, this.H() / 2, "PAUSE\nTryk II", {
       fontFamily: "Arial",
       fontSize: "28px",
       color: "#ffffff",
@@ -638,20 +843,20 @@ class GameScene extends Phaser.Scene {
     this.stars.forEach((star) => {
       star.y += star.speed * delta / 1000;
 
-      if (star.y > GAME_HEIGHT) {
+      if (star.y > this.H()) {
         star.y = -5;
-        star.x = Phaser.Math.Between(0, GAME_WIDTH);
+        star.x = Phaser.Math.Between(0, this.W());
       }
     });
   }
 
-  handleKeyboard(time) {
+  handleKeyboard() {
     if (Phaser.Input.Keyboard.JustDown(this.keys.E)) {
       this.useSuper();
     }
 
     this.keyboardShootHeld = this.keys.SPACE.isDown;
-    this.shootHeld = this.keyboardShootHeld || this.shootPointerIds.size > 0;
+    this.shootHeld = this.keyboardShootHeld || this.shootTouchIds.size > 0;
   }
 
   updatePlayer(time) {
@@ -664,7 +869,7 @@ class GameScene extends Phaser.Scene {
       move = this.joystickValue;
     }
 
-    let speed = 305;
+    let speed = 315;
 
     if (time < this.slowMotionUntil) {
       speed = 230;
@@ -708,27 +913,20 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnPlayerBullet(x, y) {
-    const laserCore = this.add.rectangle(x, y, 3, 30, 0xd9fbff, 1);
-    laserCore.setDepth(26);
+    const laser = this.add.rectangle(x, y, 4, 34, 0xd9fbff, 1);
+    laser.setDepth(26);
 
-    const laserGlow = this.add.rectangle(x, y, 9, 34, 0x6beeff, 0.18);
-    laserGlow.setDepth(25);
+    const glow = this.add.rectangle(x, y, 12, 40, 0x6beeff, 0.18);
+    glow.setDepth(25);
 
-    this.physics.add.existing(laserCore);
-    laserCore.body.setAllowGravity(false);
-    laserCore.body.setSize(5, 32);
-    laserCore.body.setVelocityY(-760);
+    laser.glow = glow;
 
-    this.physics.add.existing(laserGlow);
-    laserGlow.body.setAllowGravity(false);
-    laserGlow.body.setSize(9, 34);
-    laserGlow.body.setVelocityY(-760);
+    this.physics.add.existing(laser);
+    laser.body.setAllowGravity(false);
+    laser.body.setSize(6, 36);
+    laser.body.setVelocity(0, -820);
 
-    laserCore.partnerGlow = laserGlow;
-    laserGlow.partnerCore = laserCore;
-
-    this.playerBullets.add(laserCore);
-    this.playerBullets.add(laserGlow);
+    this.playerBullets.add(laser);
   }
 
   startNextWave() {
@@ -752,8 +950,8 @@ class GameScene extends Phaser.Scene {
 
     const cols = 6;
     const rows = this.wave === 1 ? 2 : 3;
-    const gapX = 62;
-    const startX = GAME_WIDTH / 2 - ((cols - 1) * gapX) / 2;
+    const gapX = Math.min(62, this.W() / 7.2);
+    const startX = this.W() / 2 - ((cols - 1) * gapX) / 2;
     const startY = 185;
 
     for (let r = 0; r < rows; r++) {
@@ -812,7 +1010,7 @@ class GameScene extends Phaser.Scene {
         enemy.x += enemy.direction * (38 + this.level * 7) * slow * delta / 1000;
         enemy.y += 12 * slow * delta / 1000;
 
-        if (enemy.x < 32 || enemy.x > GAME_WIDTH - 32) {
+        if (enemy.x < 32 || enemy.x > this.W() - 32) {
           enemy.direction *= -1;
           enemy.y += 16;
         }
@@ -835,7 +1033,7 @@ class GameScene extends Phaser.Scene {
 
       enemy.rotation += 0.045 * slow;
 
-      if (enemy.y > GAME_HEIGHT - 190) {
+      if (enemy.y > this.H() - 190) {
         this.playerHit(this.player, enemy);
       }
     });
@@ -856,7 +1054,7 @@ class GameScene extends Phaser.Scene {
   playerBulletHitsEnemy(bullet, enemy) {
     if (!bullet.active || !enemy.active) return;
 
-    this.destroyBulletPair(bullet);
+    this.destroyPlayerBullet(bullet);
 
     enemy.hp -= 1;
     enemy.setTint(0xffffff);
@@ -873,13 +1071,9 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  destroyBulletPair(bullet) {
-    if (bullet.partnerGlow && bullet.partnerGlow.active) {
-      bullet.partnerGlow.destroy();
-    }
-
-    if (bullet.partnerCore && bullet.partnerCore.active) {
-      bullet.partnerCore.destroy();
+  destroyPlayerBullet(bullet) {
+    if (bullet.glow && bullet.glow.active) {
+      bullet.glow.destroy();
     }
 
     if (bullet.active) {
@@ -1002,11 +1196,11 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnBoss(data) {
-    this.bossAura = this.add.circle(GAME_WIDTH / 2, 215, 96, data.color, 0.14);
+    this.bossAura = this.add.circle(this.W() / 2, 215, 96, data.color, 0.14);
     this.bossAura.setStrokeStyle(4, data.color, 0.6);
     this.bossAura.setDepth(12);
 
-    this.boss = this.physics.add.sprite(GAME_WIDTH / 2, 215, data.key);
+    this.boss = this.physics.add.sprite(this.W() / 2, 215, data.key);
     this.boss.setDepth(17);
     this.boss.displayWidth = data.width;
     this.boss.scaleY = this.boss.scaleX;
@@ -1024,7 +1218,7 @@ class GameScene extends Phaser.Scene {
     this.setBossUi(true, data.name, data.color);
   }
 
-  updateBoss(time, delta) {
+  updateBoss(time) {
     if (!this.bossActive || !this.boss || !this.boss.active) return;
 
     const hpPercent = this.bossHp / this.bossMaxHp;
@@ -1032,7 +1226,7 @@ class GameScene extends Phaser.Scene {
     const slow = time < this.slowMotionUntil ? 0.65 : 1;
 
     if (this.level === 1) {
-      this.boss.x = GAME_WIDTH / 2 + Math.sin(time / 760) * 108;
+      this.boss.x = this.W() / 2 + Math.sin(time / 760) * Math.min(108, this.W() * 0.22);
       this.boss.y = 215 + Math.sin(time / 420) * 11;
 
       if (time - this.bossLastAttack > 950 / phaseSpeed) {
@@ -1045,16 +1239,10 @@ class GameScene extends Phaser.Scene {
         this.bossLastSpecial = time;
         this.spawnWarningBeam(this.boss.x, 0x66ff8e);
       }
-
-      if (hpPercent < 0.52 && time - this.bossLastMinion > 3500) {
-        this.bossLastMinion = time;
-        this.spawnEnemy(78, 175, "normal");
-        this.spawnEnemy(GAME_WIDTH - 78, 185, "wobbler");
-      }
     }
 
     if (this.level === 2) {
-      this.boss.x = GAME_WIDTH / 2 + Math.sin(time / 360) * 125;
+      this.boss.x = this.W() / 2 + Math.sin(time / 360) * Math.min(125, this.W() * 0.25);
       this.boss.y = 215 + Math.cos(time / 540) * 24;
       this.boss.rotation = Math.sin(time / 300) * 0.06;
 
@@ -1073,7 +1261,7 @@ class GameScene extends Phaser.Scene {
     }
 
     if (this.level === 3) {
-      this.boss.x = GAME_WIDTH / 2 + Math.sin(time / 640) * 95;
+      this.boss.x = this.W() / 2 + Math.sin(time / 640) * Math.min(95, this.W() * 0.20);
       this.boss.y = 218 + Math.sin(time / 400) * 10;
 
       if (time - this.bossLastAttack > 860 / phaseSpeed) {
@@ -1086,12 +1274,7 @@ class GameScene extends Phaser.Scene {
 
       if (time - this.bossLastSpecial > 2800 / phaseSpeed) {
         this.bossLastSpecial = time;
-        this.spawnOilPatch(Phaser.Math.Between(70, GAME_WIDTH - 70), GAME_HEIGHT - 250);
-      }
-
-      if (hpPercent < 0.5 && time - this.bossLastMinion > 3400) {
-        this.bossLastMinion = time;
-        this.spawnEnemy(Phaser.Math.Between(70, GAME_WIDTH - 70), 180, "shooter");
+        this.spawnOilPatch(Phaser.Math.Between(70, this.W() - 70), this.H() - 250);
       }
     }
 
@@ -1102,7 +1285,7 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnWarningBeam(x, color) {
-    const warning = this.add.rectangle(x, GAME_HEIGHT / 2, 30, GAME_HEIGHT, color, 0.10);
+    const warning = this.add.rectangle(x, this.H() / 2, 30, this.H(), color, 0.10);
     warning.setDepth(14);
 
     this.tweens.add({
@@ -1114,12 +1297,12 @@ class GameScene extends Phaser.Scene {
       onComplete: () => {
         warning.destroy();
 
-        const beam = this.add.rectangle(x, GAME_HEIGHT / 2, 24, GAME_HEIGHT, color, 0.34);
+        const beam = this.add.rectangle(x, this.H() / 2, 24, this.H(), color, 0.34);
         beam.setDepth(16);
 
         this.physics.add.existing(beam);
         beam.body.setAllowGravity(false);
-        beam.body.setSize(24, GAME_HEIGHT);
+        beam.body.setSize(24, this.H());
 
         this.enemyBullets.add(beam);
 
@@ -1194,7 +1377,7 @@ class GameScene extends Phaser.Scene {
   playerBulletHitsBoss(bullet) {
     if (!this.bossActive || !this.boss || !this.boss.active) return;
 
-    this.destroyBulletPair(bullet);
+    this.destroyPlayerBullet(bullet);
 
     this.bossHp -= this.time.now < this.doubleLaserUntil ? 1.15 : 1;
 
@@ -1358,7 +1541,7 @@ class GameScene extends Phaser.Scene {
   }
 
   showToast(text) {
-    const toast = this.add.text(GAME_WIDTH / 2, 174, text, {
+    const toast = this.add.text(this.W() / 2, 174, text, {
       fontFamily: "Arial",
       fontSize: "16px",
       color: "#ffffff",
@@ -1385,24 +1568,24 @@ class GameScene extends Phaser.Scene {
 
     const box = this.add.container(0, 0).setDepth(550);
 
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 420, 150, 0x000000, 0.65);
+    const panel = this.add.rectangle(this.W() / 2, this.H() / 2, Math.min(420, this.W() - 28), 150, 0x000000, 0.65);
     panel.setStrokeStyle(2, 0x82d8ff, 0.28);
 
-    const titleText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 25, title, {
+    const titleText = this.add.text(this.W() / 2, this.H() / 2 - 25, title, {
       fontFamily: "Arial",
       fontSize: "25px",
       color: "#ffffff",
       fontStyle: "bold",
       align: "center",
-      wordWrap: { width: 380 }
+      wordWrap: { width: Math.min(380, this.W() - 40) }
     }).setOrigin(0.5);
 
-    const subText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 25, subtitle, {
+    const subText = this.add.text(this.W() / 2, this.H() / 2 + 25, subtitle, {
       fontFamily: "Arial",
       fontSize: "16px",
       color: "#bee4ff",
       align: "center",
-      wordWrap: { width: 360 }
+      wordWrap: { width: Math.min(360, this.W() - 40) }
     }).setOrigin(0.5);
 
     box.add([panel, titleText, subText]);
@@ -1469,10 +1652,10 @@ class GameScene extends Phaser.Scene {
 
     this.endContainer = this.add.container(0, 0).setDepth(750);
 
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 420, 330, 0x000000, 0.83);
+    const panel = this.add.rectangle(this.W() / 2, this.H() / 2, Math.min(420, this.W() - 28), 330, 0x000000, 0.83);
     panel.setStrokeStyle(3, 0x85dfff, 0.35);
 
-    const heading = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 105, won ? "SEJR!" : "GAME OVER", {
+    const heading = this.add.text(this.W() / 2, this.H() / 2 - 105, won ? "SEJR!" : "GAME OVER", {
       fontFamily: "Arial",
       fontSize: "38px",
       color: "#ffffff",
@@ -1480,21 +1663,21 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const subtitle = this.add.text(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2 - 52,
+      this.W() / 2,
+      this.H() / 2 - 52,
       won ? "Marvin slog hele verden på Tved Stadion!" : "Verden vandt denne gang.",
       {
         fontFamily: "Arial",
         fontSize: "17px",
         color: "#bee4ff",
         align: "center",
-        wordWrap: { width: 360 }
+        wordWrap: { width: Math.min(360, this.W() - 40) }
       }
     ).setOrigin(0.5);
 
     const stats = this.add.text(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2 + 28,
+      this.W() / 2,
+      this.H() / 2 + 28,
       `Score: ${this.score}\nHits taget: ${this.hitsTaken}\nHighscore: ${this.highScore}`,
       {
         fontFamily: "Arial",
@@ -1505,10 +1688,10 @@ class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
-    const restart = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 120, 180, 44, "SPIL IGEN");
+    const restart = this.makeButton(this.W() / 2, this.H() / 2 + 120, 180, 44, "SPIL IGEN");
     restart.bg.on("pointerdown", () => this.startGame());
 
-    const menu = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 174, 180, 44, "MENU");
+    const menu = this.makeButton(this.W() / 2, this.H() / 2 + 174, 180, 44, "MENU");
     menu.bg.on("pointerdown", () => {
       this.endContainer.destroy(true);
       this.endContainer = null;
@@ -1527,9 +1710,12 @@ class GameScene extends Phaser.Scene {
 
         if (obj.customUpdate) obj.customUpdate();
 
-        if (obj.y < -160 || obj.y > GAME_HEIGHT + 160 || obj.x < -160 || obj.x > GAME_WIDTH + 160) {
-          if (obj.partnerGlow && obj.partnerGlow.active) obj.partnerGlow.destroy();
-          if (obj.partnerCore && obj.partnerCore.active) obj.partnerCore.destroy();
+        if (obj.glow && obj.glow.active) {
+          obj.glow.setPosition(obj.x, obj.y);
+        }
+
+        if (obj.y < -180 || obj.y > this.H() + 180 || obj.x < -180 || obj.x > this.W() + 180) {
+          if (obj.glow && obj.glow.active) obj.glow.destroy();
           obj.destroy();
         }
       });
@@ -1546,109 +1732,10 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  handleTouchStart(pointer) {
-    if (this.gameState !== "playing") return;
-
-    const x = pointer.x;
-    const y = pointer.y;
-
-    if (this.isInsideCircle(x, y, this.joyBaseX, this.joyBaseY, 86)) {
-      this.joystickPointerId = pointer.id;
-      this.updateJoystick(pointer);
-      return;
-    }
-
-    if (this.isInsideCircle(x, y, this.shootX, this.shootY, 76)) {
-      this.shootPointerIds.add(pointer.id);
-      this.shootHeld = true;
-      this.shootButton.setScale(0.94);
-      return;
-    }
-
-    if (this.isInsideCircle(x, y, this.superX, this.superY, 58)) {
-      this.superPointerIds.add(pointer.id);
-      this.superButton.setScale(0.94);
-      this.useSuper();
-    }
-  }
-
-  handleTouchMove(pointer) {
-    if (this.gameState !== "playing") return;
-
-    if (pointer.id === this.joystickPointerId) {
-      this.updateJoystick(pointer);
-    }
-  }
-
-  handleTouchEnd(pointer) {
-    if (pointer.id === this.joystickPointerId) {
-      this.resetJoystick();
-    }
-
-    if (this.shootPointerIds.has(pointer.id)) {
-      this.shootPointerIds.delete(pointer.id);
-
-      if (this.shootPointerIds.size === 0 && !this.keyboardShootHeld) {
-        this.shootHeld = false;
-      }
-
-      this.shootButton.setScale(this.shootPointerIds.size > 0 ? 0.94 : 1);
-    }
-
-    if (this.superPointerIds.has(pointer.id)) {
-      this.superPointerIds.delete(pointer.id);
-      this.superButton.setScale(this.superPointerIds.size > 0 ? 0.94 : 1);
-    }
-  }
-
-  releaseAllTouches() {
-    this.joystickPointerId = null;
-    this.joystickValue = 0;
-
-    if (this.joyKnob) {
-      this.joyKnob.x = this.joyBaseX;
-      this.joyKnob.y = this.joyBaseY;
-    }
-
-    this.shootPointerIds.clear();
-    this.superPointerIds.clear();
-
-    this.shootHeld = false;
-    this.keyboardShootHeld = false;
-
-    if (this.shootButton) this.shootButton.setScale(1);
-    if (this.superButton) this.superButton.setScale(1);
-  }
-
-  updateJoystick(pointer) {
-    const dx = pointer.x - this.joyBaseX;
-    const dy = pointer.y - this.joyBaseY;
-
-    const maxDist = 38;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const clamped = Math.min(distance, maxDist);
-    const angle = Math.atan2(dy, dx);
-
-    this.joyKnob.x = this.joyBaseX + Math.cos(angle) * clamped;
-    this.joyKnob.y = this.joyBaseY + Math.sin(angle) * clamped;
-
-    this.joystickValue = Phaser.Math.Clamp(dx / maxDist, -1, 1);
-  }
-
-  resetJoystick() {
-    this.joystickPointerId = null;
-    this.joystickValue = 0;
-
-    if (this.joyKnob) {
-      this.joyKnob.x = this.joyBaseX;
-      this.joyKnob.y = this.joyBaseY;
-    }
-  }
-
-  isInsideCircle(x, y, cx, cy, radius) {
-    const dx = x - cx;
-    const dy = y - cy;
-    return dx * dx + dy * dy <= radius * radius;
+  formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
   beep(freq, duration, type, volume) {
@@ -1675,27 +1762,29 @@ class GameScene extends Phaser.Scene {
       osc.start();
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
       osc.stop(ctx.currentTime + duration);
-    } catch (error) {
-      // Lyd er valgfrit.
-    }
+    } catch (error) {}
   }
 }
 
 const config = {
   type: Phaser.AUTO,
   parent: "game-container",
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
+
+  width: window.innerWidth,
+  height: window.visualViewport ? window.visualViewport.height : window.innerHeight,
+
   backgroundColor: "#041127",
 
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    parent: "game-container"
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
+    parent: "game-container",
+    width: "100%",
+    height: "100%"
   },
 
   input: {
-    activePointers: 6
+    activePointers: 8
   },
 
   physics: {
