@@ -20,7 +20,7 @@
   <link rel="apple-touch-icon" href="assets/icon-192.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
 
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=4-5" />
 </head>
 
 <body>
@@ -28,7 +28,47 @@
     <div id="game-container"></div>
   </div>
 
+  <script>
+    /*
+      Midlertidig udviklings-reset:
+      Fjerner gamle service workers og gamle caches,
+      så GitHub Pages ikke viser gammel game.js.
+    */
+    (function () {
+      const resetKey = "marvin_mod_verden_cache_reset_v4_5";
+
+      async function clearOldPwaCache() {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+
+            for (const registration of registrations) {
+              await registration.unregister();
+            }
+          }
+
+          if ("caches" in window) {
+            const cacheNames = await caches.keys();
+
+            for (const cacheName of cacheNames) {
+              await caches.delete(cacheName);
+            }
+          }
+
+          if (!sessionStorage.getItem(resetKey)) {
+            sessionStorage.setItem(resetKey, "done");
+            window.location.reload();
+          }
+        } catch (error) {
+          console.warn("Kunne ikke rydde gammel cache/service worker:", error);
+        }
+      }
+
+      clearOldPwaCache();
+    })();
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
-  <script src="game.js"></script>
+  <script src="game.js?v=4-5"></script>
 </body>
 </html>
