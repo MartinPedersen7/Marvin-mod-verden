@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 4
+// Marvin mod verden - Version 4.6 projectile hard fix
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -1047,16 +1047,20 @@ class GameScene extends Phaser.Scene {
     const moveProjectile = obj => {
       if (!obj || !obj.active) return;
 
-      if (typeof obj.projectileVx === "number" || typeof obj.projectileVy === "number") {
-        const dx = (obj.projectileVx || 0) * dt;
-        const dy = (obj.projectileVy || 0) * dt;
+      const vx = typeof obj.projectileVx === "number" ? obj.projectileVx : 0;
+      const vy = typeof obj.projectileVy === "number" ? obj.projectileVy : 0;
 
-        // Flyt både game object og physics body, så overlap/collisions stadig virker.
-        obj.x += dx;
-        obj.y += dy;
-        if (obj.body) {
-          obj.body.x += dx;
-          obj.body.y += dy;
+      if (vx !== 0 || vy !== 0) {
+        const nextX = obj.x + vx * dt;
+        const nextY = obj.y + vy * dt;
+
+        // Vigtigt GitHub/Phaser-fix:
+        // Brug Phasers egne sync-metoder i stedet for at skrive direkte til body.x/body.y.
+        // Det holder sprite og physics-body låst sammen på både Live Server og GitHub Pages.
+        obj.setPosition(nextX, nextY);
+
+        if (obj.body && obj.body.reset) {
+          obj.body.reset(nextX, nextY);
         }
       }
 
