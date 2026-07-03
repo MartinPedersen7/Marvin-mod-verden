@@ -584,7 +584,13 @@ class GameScene extends Phaser.Scene {
     bullet.setDepth(35);
     bullet.body.setAllowGravity(false);
     bullet.body.setSize(6, 32, true);
-    bullet.body.setVelocity(0, -DIFFICULTY[this.selectedDifficulty].bulletSpeed);
+
+    // Vigtigt fix:
+    // På nogle mobile browsere/PWA-caches kunne Arcade Physics-velocity på projektiler
+    // ende med at stå stille. Derfor flytter vi skud manuelt i updateProjectiles().
+    bullet.body.setVelocity(0, 0);
+    bullet.projectileVx = 0;
+    bullet.projectileVy = -DIFFICULTY[this.selectedDifficulty].bulletSpeed;
     bullet.damage = 1;
     this.playerBullets.add(bullet);
   }
@@ -700,7 +706,11 @@ class GameScene extends Phaser.Scene {
     bullet.setScale(scale);
     bullet.body.setAllowGravity(false);
     bullet.body.setCircle(9 * scale);
-    bullet.body.setVelocity(vx, vy);
+
+    // Samme projectile-fix som Marvin-skuddene: manuel bevægelse i updateProjectiles().
+    bullet.body.setVelocity(0, 0);
+    bullet.projectileVx = vx;
+    bullet.projectileVy = vy;
     this.enemyBullets.add(bullet);
   }
 
@@ -899,8 +909,10 @@ class GameScene extends Phaser.Scene {
     ball.displayWidth = 48;
     ball.scaleY = ball.scaleX;
     ball.body.setAllowGravity(false);
-    ball.body.setVelocity(0, 260);
     ball.body.setCircle(ball.width * 0.33);
+    ball.body.setVelocity(0, 0);
+    ball.projectileVx = 0;
+    ball.projectileVy = 260;
     ball.customUpdate = () => { ball.rotation += 0.17; };
     this.enemyBullets.add(ball);
   }
@@ -1030,7 +1042,29 @@ class GameScene extends Phaser.Scene {
   }
 
   updateProjectiles(delta) {
-    this.enemyBullets.children.iterate(obj => { if (obj && obj.active && obj.customUpdate) obj.customUpdate(delta); });
+    const dt = delta / 1000;
+
+    const moveProjectile = obj => {
+      if (!obj || !obj.active) return;
+
+      if (typeof obj.projectileVx === "number" || typeof obj.projectileVy === "number") {
+        const dx = (obj.projectileVx || 0) * dt;
+        const dy = (obj.projectileVy || 0) * dt;
+
+        // Flyt både game object og physics body, så overlap/collisions stadig virker.
+        obj.x += dx;
+        obj.y += dy;
+        if (obj.body) {
+          obj.body.x += dx;
+          obj.body.y += dy;
+        }
+      }
+
+      if (obj.customUpdate) obj.customUpdate(delta);
+    };
+
+    this.playerBullets.children.iterate(moveProjectile);
+    this.enemyBullets.children.iterate(moveProjectile);
   }
 
   cleanupObjects() {

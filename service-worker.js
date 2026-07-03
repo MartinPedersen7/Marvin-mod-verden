@@ -1,4 +1,4 @@
-const CACHE_NAME = "marvin-mod-verden-v4-1";
+const CACHE_NAME = "marvin-mod-verden-v4-2-projectile-fix";
 const ASSETS = [
   "./",
   "./index.html",
