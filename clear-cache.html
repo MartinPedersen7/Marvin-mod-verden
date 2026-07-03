@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rydder Marvin-cache</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #071c3f; color: white; font-family: Arial, sans-serif; text-align: center; }
+    main { max-width: 420px; padding: 24px; }
+    a { color: #9fe0ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Rydder gammel Marvin-cache...</h1>
+    <p>Siden afregistrerer gamle service workers og rydder cache. Du sendes videre til spillet om lidt.</p>
+    <p><a href="./">Klik her, hvis den ikke går videre automatisk.</a></p>
+  </main>
+
+  <script>
+    async function clearEverything() {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+
+        if ("caches" in window) {
+          const names = await caches.keys();
+          await Promise.all(names.map(name => caches.delete(name)));
+        }
+
+        try {
+          localStorage.removeItem("mmv_seen_tutorial_v4");
+        } catch (error) {
+          // ignore
+        }
+      } catch (error) {
+        console.warn("Kunne ikke rydde alt cache:", error);
+      }
+
+      window.location.replace("./?clean=1");
+    }
+
+    clearEverything();
+  </script>
+</body>
+</html>

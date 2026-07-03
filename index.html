@@ -2,73 +2,19 @@
 <html lang="da">
 <head>
   <meta charset="utf-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#071c3f" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Marvin mod verden" />
-  <meta name="mobile-web-app-capable" content="yes" />
-
   <title>Marvin mod verden</title>
-
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="assets/icon-192.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
-
-  <link rel="stylesheet" href="style.css?v=4-5" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="style.css?v=clean-1" />
 </head>
-
 <body>
   <div id="game-shell">
     <div id="game-container"></div>
   </div>
 
-  <script>
-    /*
-      Midlertidig udviklings-reset.
-      Den afregistrerer gamle service workers og rydder gamle caches,
-      så GitHub Pages ikke bliver ved med at vise gammel kode.
-    */
-    (function () {
-      const resetKey = "marvin_mod_verden_cache_reset_v4_5";
-
-      async function clearOldCache() {
-        try {
-          if ("serviceWorker" in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-
-            for (const registration of registrations) {
-              await registration.unregister();
-            }
-          }
-
-          if ("caches" in window) {
-            const cacheNames = await caches.keys();
-
-            for (const cacheName of cacheNames) {
-              await caches.delete(cacheName);
-            }
-          }
-
-          if (!sessionStorage.getItem(resetKey)) {
-            sessionStorage.setItem(resetKey, "done");
-            window.location.reload();
-          }
-        } catch (error) {
-          console.warn("Kunne ikke rydde gammel cache/service worker:", error);
-        }
-      }
-
-      clearOldCache();
-    })();
-  </script>
-
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
-  <script src="game.js?v=4-5"></script>
+  <script src="game.js?v=clean-1"></script>
 </body>
 </html>

@@ -1,59 +1,37 @@
-# Marvin mod verden - Version 4
+# Marvin mod verden - Clean GitHub Pages version
 
-Komplet mobilvenlig browser-spilpakke lavet med HTML, CSS, JavaScript og Phaser.js via CDN.
+Dette er en ren GitHub Pages-version uden aktiv PWA/service worker.
 
-## Nyt i version 4
+## Filer der skal ligge i roden
 
-- PWA/app-installation via `manifest.json` og `service-worker.js`
-- App-ikon med Marvin på græsbane
-- Højere/tallere spilleformat: `480 x 1040`, bedre til moderne iPhones
-- Multitouch rettet, så man kan styre, skyde og bruge SUPER samtidig
-- Separat SUPER-knap
-- Tyndere og hurtigere Marvin-laser
-- Bedre oprydning af skud/fjender, så gamle prikker ikke bliver hængende
-- Forbedrede fodboldfjender
-- Gennemsigtige Marvin- og boss-assets uden fast sort baggrund
-- Sværhedsgrad: NEM, NORMAL og KAOS
-- Førstegangs-tutorial
-- Upgrade-valg efter bosskampe
-- Score summary og kopier-score-knap
-- Lyd ON/OFF
+- `index.html`
+- `style.css`
+- `game.js`
+- `README.md`
+- `clear-cache.html`
+- `.nojekyll`
+- `assets/`
 
-## Filstruktur
+## Vigtigt ved upload til GitHub
 
-```text
-index.html
-style.css
-game.js
-manifest.json
-service-worker.js
-README.md
-assets/
-```
+Slet disse filer fra repoet, hvis de stadig findes fra tidligere versioner:
 
-## Sådan tester du lokalt
+- `service-worker.js`
+- `manifest.json`
+- `.github/workflows/static.yml` hvis du ikke vil bruge GitHub Actions manuelt
 
-1. Åbn mappen i Visual Studio Code.
-2. Højreklik på `index.html`.
-3. Vælg `Open with Live Server`.
+GitHub Pages kan fortsat stå til:
 
-## Sådan udgiver du på GitHub Pages
+- Source: Deploy from a branch
+- Branch: main
+- Folder: /root
 
-1. Sørg for at `index.html`, `game.js`, `style.css`, `manifest.json` og `assets/` ligger direkte i repoets rod.
-2. Commit og push til `main`.
-3. Gå til `Settings -> Pages`.
-4. Vælg enten:
-   - `Deploy from a branch`, branch `main`, folder `/root`, eller
-   - `GitHub Actions` med Static HTML workflow.
+## Efter push
 
-## Mobil-installation
+Besøg denne side én gang for at rydde gammel service worker/cache:
 
-Åbn GitHub Pages-linket på mobilen.
+`https://martinpedersen7.github.io/Marvin-mod-verden/clear-cache.html`
 
-### iPhone
+Derefter spil via:
 
-Åbn i Safari -> Del -> Føj til hjemmeskærm.
-
-### Android
-
-Åbn i Chrome -> menu med tre prikker -> Føj til startskærm / Installer app.
+`https://martinpedersen7.github.io/Marvin-mod-verden/`
