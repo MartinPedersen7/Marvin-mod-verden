@@ -1,36 +1,29 @@
-# Marvin mod verden - v5.4 komplet fix
+# Marvin mod verden - Version 5.5
 
-Clean GitHub Pages-version uden service worker/PWA-cache.
+Version 5.5 indeholder:
 
-## Rettelser i v5.4
+- Nyt app-logo (MVM / Marvin på græs) som bruges som `icon-192.png` og `icon-512.png`
+- Startskærm med leaderboard-knap
+- Pausemenu med både **Genoptag** og **Tilbage til Start**
+- Supabase leaderboard er fortsat aktivt
 
-- Wave starter korrekt på Wave 1.
-- Ekstra boss-intro efter Kimi-Kaze er blokeret.
-- Flow efter boss 2 er låst, så spillet kan fortsætte til bane 3.
-- Boss-defeat transition er beskyttet, så samme boss ikke kan starte igen imens opgraderingsmenuen venter.
-- Gormi-Zilla spawner ikke længere ekstra almindelige bolde midt i bosskampen.
-- Nye 96x96 RGBA-bolde med gennemsigtig baggrund.
-- index.html loader game.js?v=5-2.
+## Filer i pakken
 
-## Upload
+- `index.html`
+- `style.css`
+- `game.js`
+- `clear-cache.html`
+- `README.md`
+- `assets/`
 
-Læg alle filer fra denne mappe direkte i roden af repoet.
-Slet fortsat service-worker.js og manifest.json, hvis de ligger der.
+## GitHub Pages
 
-Efter push kan du åbne clear-cache.html én gang.
+Upload hele indholdet til repoets rod og push til `main`.
 
+Efter push kan du teste på:
 
-## v5.4 rettelser
+`https://martinpedersen7.github.io/Marvin-mod-verden/`
 
-- SUPER viser ikke længere tekst-popup.
-- Opgraderingsknapper er gjort tydeligere.
-- Opgraderinger har større effekt.
-- NORMAL og KAOS er gjort tydeligt sværere end NEM.
-- Klar til næste trin: Supabase leaderboard i v5.4.
+Hvis en gammel version hænger fast i cache, så besøg:
 
-
-## v5.4 Leaderboard
-
-Denne version har Supabase leaderboard. Scores sendes kun ved sejr.
-
-Supabase table: `leaderboard` med kolonnerne `player_name`, `score`, `difficulty`, `time_seconds`, `hits_taken`, `created_at`.
+`https://martinpedersen7.github.io/Marvin-mod-verden/clear-cache.html`

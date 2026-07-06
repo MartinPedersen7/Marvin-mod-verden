@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 5.4 Supabase leaderboard
+// Marvin mod verden - Version 5.5 Supabase leaderboard + nyt app-logo + bedre pausemenu
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -499,7 +499,7 @@ class GameScene extends Phaser.Scene {
     const title = this.add.text(GAME_WIDTH / 2, 190, "MARVIN\nMOD VERDEN", {
       fontFamily: "Arial", fontSize: 38, color: "#ffffff", fontStyle: "bold", align: "center", lineSpacing: -8
     }).setOrigin(0.5);
-    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.4 · Leaderboard\n5 bosser · 3 waves før hver boss", {
+    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.5 · Leaderboard\n5 bosser · 3 waves før hver boss", {
       fontFamily: "Arial", fontSize: 16, color: "#bee4ff", align: "center"
     }).setOrigin(0.5);
 
@@ -626,12 +626,15 @@ class GameScene extends Phaser.Scene {
     if (this.gameState !== "playing") return;
     this.gameState = "paused";
     this.physics.pause();
+    if (this.pauseContainer) this.pauseContainer.destroy(true);
     this.pauseContainer = this.add.container(0, 0).setDepth(800);
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 360, 210, 0x000000, 0.82);
-    const text = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, "PAUSE", { fontFamily: "Arial", fontSize: 36, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
-    const resume = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, 190, 46, "FORTSÆT", 18);
+    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 380, 250, 0x000000, 0.84).setStrokeStyle(2, 0x8bd8ff, 0.35);
+    const text = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 62, "PAUSE", { fontFamily: "Arial", fontSize: 36, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
+    const resume = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 6, 210, 46, "GENOPTAG", 18);
     resume.bg.on("pointerdown", () => this.resumeGame());
-    this.pauseContainer.add([panel, text, resume.bg, resume.label]);
+    const back = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 64, 230, 42, "TILBAGE TIL START", 16);
+    back.bg.on("pointerdown", () => this.returnToStartFromPause());
+    this.pauseContainer.add([panel, text, resume.bg, resume.label, back.bg, back.label]);
   }
 
   resumeGame() {
@@ -640,6 +643,15 @@ class GameScene extends Phaser.Scene {
     this.physics.resume();
     if (this.pauseContainer) this.pauseContainer.destroy(true);
     this.pauseContainer = null;
+  }
+
+  returnToStartFromPause() {
+    if (this.pauseContainer) {
+      this.pauseContainer.destroy(true);
+      this.pauseContainer = null;
+    }
+    this.clearAllObjects();
+    this.showStartMenu();
   }
 
   update(time, delta) {
