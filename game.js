@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 5.2 komplet boss-turnering
+// Marvin mod verden - Version 5.3 gameplay polish
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -26,21 +26,21 @@ const DIFFICULTY = {
   },
   normal: {
     label: "NORMAL",
-    enemySpeed: 1,
-    enemyShots: 1,
-    bossHp: 1,
-    powerChance: 0.06,
+    enemySpeed: 1.16,
+    enemyShots: 1.22,
+    bossHp: 1.12,
+    powerChance: 0.055,
     startLives: 3,
-    bulletSpeed: 950
+    bulletSpeed: 970
   },
   chaos: {
     label: "KAOS",
-    enemySpeed: 1.18,
-    enemyShots: 1.22,
-    bossHp: 1.18,
-    powerChance: 0.06,
-    startLives: 3,
-    bulletSpeed: 970
+    enemySpeed: 1.45,
+    enemyShots: 1.65,
+    bossHp: 1.38,
+    powerChance: 0.04,
+    startLives: 2,
+    bulletSpeed: 990
   }
 };
 
@@ -689,7 +689,7 @@ class GameScene extends Phaser.Scene {
 
     const boost = time < this.speedBoostUntil ? 1.42 : 1;
     const oilSlow = time < this.playerSlowUntil ? 0.78 : 1;
-    const speed = (305 + (this.upgrades.speed || 0) * 28) * boost * oilSlow;
+    const speed = (305 + (this.upgrades.speed || 0) * 55) * boost * oilSlow;
     this.player.setVelocityX(move * speed);
 
     if (this.touchShooting || this.keyboardShooting) this.shoot(time);
@@ -703,7 +703,7 @@ class GameScene extends Phaser.Scene {
 
   shoot(time) {
     const baseRate = time < this.doubleLaserUntil ? 95 : 145;
-    const rate = Math.max(70, baseRate - (this.upgrades.fireRate || 0) * 16);
+    const rate = Math.max(55, baseRate - (this.upgrades.fireRate || 0) * 30);
     if (time - this.lastShotAt < rate) return;
     this.lastShotAt = time;
 
@@ -906,7 +906,7 @@ class GameScene extends Phaser.Scene {
   }
 
   dropPowerupMaybe(x, y) {
-    const chance = DIFFICULTY[this.selectedDifficulty].powerChance + (this.upgrades.shieldLuck || 0) * 0.015;
+    const chance = DIFFICULTY[this.selectedDifficulty].powerChance + (this.upgrades.shieldLuck || 0) * 0.035;
     if (Math.random() > chance) return;
 
     const roll = Math.random();
@@ -936,7 +936,7 @@ class GameScene extends Phaser.Scene {
   collectPowerup(player, drop) {
     if (!drop.active) return;
     if (drop.powerType === "double") {
-      this.doubleLaserUntil = this.time.now + 9000 + (this.upgrades.laserTime || 0) * 2500;
+      this.doubleLaserUntil = this.time.now + 9000 + (this.upgrades.laserTime || 0) * 4500;
       this.showToast("DOBBELT LASER!");
       this.glowPlayer(0x79e7ff);
     } else if (drop.powerType === "shield") {
@@ -1216,9 +1216,14 @@ class GameScene extends Phaser.Scene {
       { text: "Længere dobbeltlaser", apply: () => this.upgrades.laserTime += 1 }
     ];
     Phaser.Utils.Array.Shuffle(choices).slice(0, 3).forEach((choice, i) => {
-      const btn = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 75 + i * 82, 330, 54, choice.text, 18);
+      const btn = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 75 + i * 82, 340, 58, choice.text, 19);
+      btn.bg.setFillStyle(0xffffff, 1);
+      btn.bg.setStrokeStyle(4, 0x7ed6ff, 1);
+      btn.label.setColor("#031b3d");
+      btn.label.setStroke("#ffffff", 1);
       btn.bg.on("pointerdown", () => {
         choice.apply();
+        this.showToast(`OPGRADERING: ${choice.text.toUpperCase()}`);
         this.upgradeContainer.destroy(true);
         this.upgradeContainer = null;
         this.level += 1;
@@ -1269,9 +1274,8 @@ class GameScene extends Phaser.Scene {
   useSuper() {
     if (!this.superReady || this.gameState !== "playing") return;
     this.superReady = false;
-    const cooldown = Math.max(5500, 9000 - (this.upgrades.super || 0) * 1400);
+    const cooldown = Math.max(3500, 9000 - (this.upgrades.super || 0) * 2400);
     this.superCooldownUntil = this.time.now + cooldown;
-    this.showCenterMessage("SUPER: STADIONLYS!", "Hele banen blinker!", 780);
     this.beep(1040, 0.12, "square", 0.045);
     const pulse = this.add.circle(this.player.x, this.player.y, 40, 0x79e3ff, 0.35).setDepth(65);
     this.tweens.add({ targets: pulse, scale: 12, alpha: 0, duration: 420, onComplete: () => pulse.destroy() });
