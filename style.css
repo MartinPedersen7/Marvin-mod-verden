@@ -14,9 +14,7 @@ body {
   overscroll-behavior: none;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 #game-shell {
   width: 100vw;
