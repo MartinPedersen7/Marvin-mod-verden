@@ -486,7 +486,7 @@ class GameScene extends Phaser.Scene {
     const title = this.add.text(GAME_WIDTH / 2, 190, "MARVIN\nMOD VERDEN", {
       fontFamily: "Arial", fontSize: 38, color: "#ffffff", fontStyle: "bold", align: "center", lineSpacing: -8
     }).setOrigin(0.5);
-    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.1 · Boss-turnering\n5 bosser · 3 waves før hver boss", {
+    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.3 · Boss-turnering\n5 bosser · 3 waves før hver boss", {
       fontFamily: "Arial", fontSize: 16, color: "#bee4ff", align: "center"
     }).setOrigin(0.5);
 
