@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 4.6 projectile hard fix
+// Marvin mod verden - Version 4.7 safe upgrade
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -20,7 +20,7 @@ const DIFFICULTY = {
     enemySpeed: 0.82,
     enemyShots: 0.70,
     bossHp: 0.82,
-    powerChance: 0.24,
+    powerChance: 0.14,
     startLives: 4,
     bulletSpeed: 930
   },
@@ -29,7 +29,7 @@ const DIFFICULTY = {
     enemySpeed: 1,
     enemyShots: 1,
     bossHp: 1,
-    powerChance: 0.18,
+    powerChance: 0.10,
     startLives: 3,
     bulletSpeed: 950
   },
@@ -38,7 +38,7 @@ const DIFFICULTY = {
     enemySpeed: 1.18,
     enemyShots: 1.22,
     bossHp: 1.18,
-    powerChance: 0.15,
+    powerChance: 0.08,
     startLives: 3,
     bulletSpeed: 970
   }
@@ -153,6 +153,17 @@ class GameScene extends Phaser.Scene {
       g.generateTexture("playerLaser", 14, 38);
     }
 
+    if (!this.textures.exists("megaLaser")) {
+      g.clear();
+      g.fillStyle(0xfff29a, 1);
+      g.fillRoundedRect(4, 0, 18, 48, 9);
+      g.fillStyle(0xffffff, 0.95);
+      g.fillRoundedRect(10, 2, 6, 42, 3);
+      g.lineStyle(3, 0xffb300, 0.95);
+      g.strokeRoundedRect(3, 0, 20, 48, 10);
+      g.generateTexture("megaLaser", 26, 52);
+    }
+
     if (!this.textures.exists("enemyShot")) {
       g.clear();
       g.fillStyle(0xe8f4ff, 1);
@@ -206,6 +217,12 @@ class GameScene extends Phaser.Scene {
 
     this.pitchGlow = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT - 125, GAME_WIDTH, 170, 0x00ff77, 0.04).setDepth(-116);
     this.tweens.add({ targets: this.pitchGlow, alpha: { from: 0.03, to: 0.085 }, duration: 1500, yoyo: true, repeat: -1 });
+
+    this.themeOverlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x1e8cff, 0.00).setDepth(-115);
+    this.themeNameText = this.add.text(GAME_WIDTH / 2, 104, "", {
+      fontFamily: "Arial", fontSize: 15, color: "#ffffff", fontStyle: "bold",
+      stroke: "#000000", strokeThickness: 3
+    }).setOrigin(0.5).setDepth(249).setAlpha(0);
   }
 
   createGroups() {
@@ -240,6 +257,10 @@ class GameScene extends Phaser.Scene {
     this.waveText = this.add.text(12, 60, "", { fontFamily: "Arial", fontSize: 14, color: "#cceaff" }).setDepth(250);
     this.powerText = this.add.text(12, 82, "", { fontFamily: "Arial", fontSize: 12, color: "#ffe891", wordWrap: { width: 310 } }).setDepth(250);
     this.statsText = this.add.text(GAME_WIDTH - 12, 12, "", { fontFamily: "Arial", fontSize: 13, color: "#ffffff", align: "right" }).setOrigin(1, 0).setDepth(250);
+    this.lifeHeartText = this.add.text(GAME_WIDTH / 2, 24, "", {
+      fontFamily: "Arial", fontSize: 28, color: "#ff5b78", fontStyle: "bold",
+      stroke: "#000000", strokeThickness: 4
+    }).setOrigin(0.5).setDepth(255);
 
     this.bossBarBack = this.add.rectangle(GAME_WIDTH / 2, 130, 318, 18, 0x250915, 0.90).setDepth(251).setVisible(false);
     this.bossBarFill = this.add.rectangle(GAME_WIDTH / 2 - 159, 130, 318, 18, 0x54ff8c, 1).setOrigin(0, 0.5).setDepth(252).setVisible(false);
@@ -310,7 +331,8 @@ class GameScene extends Phaser.Scene {
     const difficulty = DIFFICULTY[this.selectedDifficulty];
     if (resetScore) {
       this.score = 0;
-      this.lives = difficulty.startLives;
+      this.maxLives = difficulty.startLives;
+      this.lives = this.maxLives;
       this.level = 1;
       this.wave = 0;
       this.hitsTaken = 0;
@@ -322,6 +344,9 @@ class GameScene extends Phaser.Scene {
 
     this.lastShotAt = 0;
     this.doubleLaserUntil = 0;
+    this.megaLaserUntil = 0;
+    this.speedBoostUntil = 0;
+    this.playerSlowUntil = 0;
     this.slowMotionUntil = 0;
     this.invincibleUntil = 0;
     this.shieldActive = false;
@@ -368,7 +393,7 @@ class GameScene extends Phaser.Scene {
     const title = this.add.text(GAME_WIDTH / 2, 190, "MARVIN\nMOD VERDEN", {
       fontFamily: "Arial", fontSize: 38, color: "#ffffff", fontStyle: "bold", align: "center", lineSpacing: -8
     }).setOrigin(0.5);
-    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 4 · Tved Stadion\nMobil-app klar med PWA og bedre touch", {
+    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 4.7 · Tved Stadion\nMobil-browser version", {
       fontFamily: "Arial", fontSize: 16, color: "#bee4ff", align: "center"
     }).setOrigin(0.5);
 
@@ -436,10 +461,10 @@ class GameScene extends Phaser.Scene {
     const title = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 225, "SÅDAN SPILLER DU", { fontFamily: "Arial", fontSize: 30, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
     const body = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40,
       "• Brug joysticket til venstre til at styre Marvin.\n\n" +
-      "• Hold SKYD til højre for at skyde tynde laserstråler op ad banen.\n\n" +
+      "• Hold SKYD til højre for at skyde laserstråler op ad banen.\n\n" +
       "• SUPER-knappen rydder skud og skader bosser, når den er klar.\n\n" +
-      "• Saml powerups: TB-skjold, 2X laser og dommerfløjte.\n\n" +
-      "• Efter bosser kan du vælge en opgradering.",
+      "• Saml powerups: TB-skjold, 2X laser, dommerfløjte, Lynsko og Mega-laser.\n\n" +
+      "• Efter bosser får Marvin liv igen og kan vælge en opgradering.",
       { fontFamily: "Arial", fontSize: 18, color: "#dcecff", wordWrap: { width: 350 }, lineSpacing: 6 }
     ).setOrigin(0.5);
     const close = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 235, 170, 46, isFirstRun ? "START" : "LUK", 18);
@@ -522,6 +547,7 @@ class GameScene extends Phaser.Scene {
     this.updateEnemies(time, delta);
     this.updateBoss(time, delta);
     this.updateProjectiles(delta);
+    this.updatePowerups(time, delta);
     this.cleanupObjects();
     this.updateHud();
 
@@ -552,7 +578,9 @@ class GameScene extends Phaser.Scene {
     if (this.cursors.right.isDown || this.keys.D.isDown) move = 1;
     if (Math.abs(this.joystickValue) > 0.05) move = this.joystickValue;
 
-    const speed = 305 + (this.upgrades.speed || 0) * 28;
+    const boost = time < this.speedBoostUntil ? 1.42 : 1;
+    const oilSlow = time < this.playerSlowUntil ? 0.78 : 1;
+    const speed = (305 + (this.upgrades.speed || 0) * 28) * boost * oilSlow;
     this.player.setVelocityX(move * speed);
 
     if (this.touchShooting || this.keyboardShooting) this.shoot(time);
@@ -570,7 +598,9 @@ class GameScene extends Phaser.Scene {
     if (time - this.lastShotAt < rate) return;
     this.lastShotAt = time;
 
-    if (time < this.doubleLaserUntil) {
+    if (time < this.megaLaserUntil) {
+      this.spawnPlayerBullet(this.player.x, this.player.y - 48, true);
+    } else if (time < this.doubleLaserUntil) {
       this.spawnPlayerBullet(this.player.x - 13, this.player.y - 42);
       this.spawnPlayerBullet(this.player.x + 13, this.player.y - 42);
     } else {
@@ -579,19 +609,21 @@ class GameScene extends Phaser.Scene {
     this.beep(760, 0.025, "square", 0.018);
   }
 
-  spawnPlayerBullet(x, y) {
-    const bullet = this.physics.add.sprite(x, y, "playerLaser");
+  spawnPlayerBullet(x, y, mega = false) {
+    const bullet = this.physics.add.sprite(x, y, mega ? "megaLaser" : "playerLaser");
     bullet.setDepth(35);
     bullet.body.setAllowGravity(false);
-    bullet.body.setSize(6, 32, true);
+    if (mega) {
+      bullet.body.setSize(20, 46, true);
+      bullet.setTint(0xfff29a);
+    } else {
+      bullet.body.setSize(6, 32, true);
+    }
 
-    // Vigtigt fix:
-    // På nogle mobile browsere/PWA-caches kunne Arcade Physics-velocity på projektiler
-    // ende med at stå stille. Derfor flytter vi skud manuelt i updateProjectiles().
     bullet.body.setVelocity(0, 0);
     bullet.projectileVx = 0;
-    bullet.projectileVy = -DIFFICULTY[this.selectedDifficulty].bulletSpeed;
-    bullet.damage = 1;
+    bullet.projectileVy = mega ? -1040 : -DIFFICULTY[this.selectedDifficulty].bulletSpeed;
+    bullet.damage = mega ? 3 : 1;
     this.playerBullets.add(bullet);
   }
 
@@ -599,6 +631,8 @@ class GameScene extends Phaser.Scene {
     if (this.gameState !== "playing") return;
     this.waitingForNextWave = false;
     this.wave += 1;
+    this.applyLevelTheme();
+    if (this.wave === 1) this.showToast("Hold SKYD nede mens du styrer");
     if (this.wave > 3) {
       this.startBoss();
       return;
@@ -627,7 +661,9 @@ class GameScene extends Phaser.Scene {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         let type = "normal";
-        if ((r + c + this.level) % 5 === 0) type = "shooter";
+        if (this.level >= 2 && (r + c) % 6 === 0) type = "fast";
+        else if (this.level >= 3 && (r + c) % 5 === 0) type = "tank";
+        else if ((r + c + this.level) % 5 === 0) type = "shooter";
         else if ((r + c) % 3 === 0) type = "wobbler";
         this.spawnEnemy(startX + c * gapX, startY + r * 58, type);
       }
@@ -639,7 +675,7 @@ class GameScene extends Phaser.Scene {
       [240, 165], [195, 210], [285, 210], [150, 255], [330, 255], [105, 300], [375, 300],
       [210, 300], [270, 300], [175, 350], [305, 350], [240, 395]
     ];
-    points.forEach((p, i) => this.spawnEnemy(p[0], p[1], i % 4 === 0 ? "shooter" : i % 3 === 0 ? "wobbler" : "normal"));
+    points.forEach((p, i) => this.spawnEnemy(p[0], p[1], i % 7 === 0 ? "fast" : i % 5 === 0 ? "tank" : i % 4 === 0 ? "shooter" : i % 3 === 0 ? "wobbler" : "normal"));
   }
 
   spawnFormationCircle() {
@@ -649,7 +685,7 @@ class GameScene extends Phaser.Scene {
       const a = (Math.PI * 2 / 14) * i;
       const x = cx + Math.cos(a) * 135;
       const y = cy + Math.sin(a) * 90;
-      this.spawnEnemy(x, y, i % 5 === 0 ? "shooter" : i % 2 === 0 ? "wobbler" : "normal");
+      this.spawnEnemy(x, y, i % 6 === 0 ? "tank" : i % 5 === 0 ? "fast" : i % 4 === 0 ? "shooter" : i % 2 === 0 ? "wobbler" : "normal");
     }
     this.spawnEnemy(cx, cy, "shooter");
   }
@@ -657,11 +693,13 @@ class GameScene extends Phaser.Scene {
   spawnEnemy(x, y, type) {
     const enemy = this.physics.add.sprite(x, y, this.getEnemyTexture());
     enemy.setDepth(18);
-    enemy.displayWidth = type === "shooter" ? 45 : 40;
+    enemy.displayWidth = type === "shooter" ? 45 : type === "tank" ? 52 : type === "fast" ? 34 : 40;
     enemy.scaleY = enemy.scaleX;
     enemy.type = type;
-    enemy.hp = type === "normal" ? 1 : type === "wobbler" ? 2 : 3;
-    enemy.scoreValue = type === "normal" ? 100 : type === "wobbler" ? 200 : 300;
+    enemy.hp = type === "normal" ? 1 : type === "fast" ? 1 : type === "wobbler" ? 2 : type === "tank" ? 4 : 3;
+    enemy.scoreValue = type === "normal" ? 100 : type === "fast" ? 160 : type === "wobbler" ? 200 : type === "tank" ? 420 : 300;
+    if (type === "fast") enemy.setTint(0xff4d4d);
+    if (type === "tank") enemy.setTint(0x222222);
     enemy.baseX = x;
     enemy.direction = Phaser.Math.Between(0, 1) ? 1 : -1;
     enemy.waveOffset = Phaser.Math.FloatBetween(0, Math.PI * 2);
@@ -676,7 +714,17 @@ class GameScene extends Phaser.Scene {
     const slow = time < this.slowMotionUntil ? 0.55 : 1;
     this.enemies.children.iterate(enemy => {
       if (!enemy || !enemy.active) return;
-      if (enemy.type === "normal") {
+      if (enemy.type === "fast") {
+        enemy.x += enemy.direction * (82 + this.level * 8) * d.enemySpeed * slow * delta / 1000;
+        enemy.y += (26 + this.level * 5) * d.enemySpeed * slow * delta / 1000;
+        if (enemy.x < 28 || enemy.x > GAME_WIDTH - 28) {
+          enemy.direction *= -1;
+          enemy.y += 18;
+        }
+      } else if (enemy.type === "tank") {
+        enemy.x = enemy.baseX + Math.sin(time / 620 + enemy.waveOffset) * 22;
+        enemy.y += (10 + this.level * 2) * d.enemySpeed * slow * delta / 1000;
+      } else if (enemy.type === "normal") {
         enemy.x += enemy.direction * (38 + this.level * 6) * d.enemySpeed * slow * delta / 1000;
         enemy.y += 12 * d.enemySpeed * slow * delta / 1000;
         if (enemy.x < 28 || enemy.x > GAME_WIDTH - 28) {
@@ -706,8 +754,6 @@ class GameScene extends Phaser.Scene {
     bullet.setScale(scale);
     bullet.body.setAllowGravity(false);
     bullet.body.setCircle(9 * scale);
-
-    // Samme projectile-fix som Marvin-skuddene: manuel bevægelse i updateProjectiles().
     bullet.body.setVelocity(0, 0);
     bullet.projectileVx = vx;
     bullet.projectileVy = vy;
@@ -738,20 +784,30 @@ class GameScene extends Phaser.Scene {
   }
 
   dropPowerupMaybe(x, y) {
-    const chance = DIFFICULTY[this.selectedDifficulty].powerChance + (this.upgrades.shieldLuck || 0) * 0.03;
+    const chance = DIFFICULTY[this.selectedDifficulty].powerChance + (this.upgrades.shieldLuck || 0) * 0.015;
     if (Math.random() > chance) return;
+
     const roll = Math.random();
-    const type = roll < 0.42 ? "double" : roll < 0.72 ? "shield" : "slow";
-    const color = type === "double" ? 0x79e7ff : type === "shield" ? 0x69ff9c : 0xffe36a;
-    const label = type === "double" ? "2X" : type === "shield" ? "TB" : "FL";
-    const drop = this.add.circle(x, y, 16, color, 0.95).setDepth(22);
+    let type = "double";
+    if (roll < 0.30) type = "double";
+    else if (roll < 0.52) type = "shield";
+    else if (roll < 0.70) type = "slow";
+    else if (roll < 0.86) type = "speed";
+    else type = "mega";
+
+    const color = type === "double" ? 0x79e7ff : type === "shield" ? 0x69ff9c : type === "slow" ? 0xffe36a : type === "speed" ? 0xff4d4d : 0xffb300;
+    const label = type === "double" ? "2X" : type === "shield" ? "TB" : type === "slow" ? "FL" : type === "speed" ? "LYN" : "MEGA";
+    const radius = type === "mega" ? 20 : 16;
+    const drop = this.add.circle(x, y, radius, color, 0.95).setDepth(22);
     drop.powerType = type;
+    drop.powerupVy = 118;
+    drop.powerupVx = Phaser.Math.Between(-16, 16);
     this.physics.add.existing(drop);
     drop.body.setAllowGravity(false);
-    drop.body.setCircle(16);
-    drop.body.setVelocity(0, 132);
+    drop.body.setCircle(radius);
+    drop.body.setVelocity(0, 0);
     this.powerups.add(drop);
-    const text = this.add.text(x, y, label, { fontFamily: "Arial", fontSize: 10, color: "#06214c", fontStyle: "bold" }).setOrigin(0.5).setDepth(23);
+    const text = this.add.text(x, y, label, { fontFamily: "Arial", fontSize: type === "mega" ? 9 : 10, color: "#06214c", fontStyle: "bold" }).setOrigin(0.5).setDepth(23);
     text.followTarget = drop;
   }
 
@@ -765,10 +821,18 @@ class GameScene extends Phaser.Scene {
       this.shieldActive = true;
       this.showToast("TB-SKJOLD AKTIVERET!");
       this.glowPlayer(0x69ff9c);
-    } else {
+    } else if (drop.powerType === "slow") {
       this.slowMotionUntil = this.time.now + 4800;
       this.showToast("DOMMERFLØJTE! FJENDERNE BLIVER LANGSOMME");
       this.glowPlayer(0xffe36a);
+    } else if (drop.powerType === "speed") {
+      this.speedBoostUntil = this.time.now + 7000;
+      this.showToast("LYNSKO! MARVIN BLIVER HURTIGERE");
+      this.glowPlayer(0xff4d4d);
+    } else if (drop.powerType === "mega") {
+      this.megaLaserUntil = this.time.now + 5200;
+      this.showToast("MEGA-LASER AKTIVERET!");
+      this.glowPlayer(0xffb300);
     }
     drop.destroy();
     this.beep(940, 0.08, "sine", 0.04);
@@ -779,13 +843,13 @@ class GameScene extends Phaser.Scene {
     this.enemies.clear(true, true);
     this.enemyBullets.clear(true, true);
     this.hazards.clear(true, true);
+    this.applyLevelTheme();
     const data = this.getBossData();
     this.bossName = data.name;
     this.bossColor = data.color;
     this.bossMaxHp = Math.round(data.hp * DIFFICULTY[this.selectedDifficulty].bossHp);
     this.bossHp = this.bossMaxHp;
-    this.showCenterMessage(data.title, data.intro, 1800);
-    this.time.delayedCall(1050, () => { if (this.gameState === "playing") this.spawnBoss(data); });
+    this.showBossIntro(data);
   }
 
   getBossData() {
@@ -800,6 +864,9 @@ class GameScene extends Phaser.Scene {
     this.boss = this.physics.add.sprite(GAME_WIDTH / 2, 220, key).setDepth(21);
     this.boss.displayWidth = data.width;
     this.boss.scaleY = this.boss.scaleX;
+    const finalScale = this.boss.scaleX;
+    this.boss.setScale(finalScale * 0.25).setAlpha(0);
+    this.tweens.add({ targets: this.boss, scale: finalScale, alpha: 1, duration: 520, ease: "Back.Out" });
     this.boss.body.setAllowGravity(false);
     this.boss.body.setImmovable(true);
     this.boss.body.setSize(this.boss.width * 0.54, this.boss.height * 0.58, true);
@@ -946,6 +1013,7 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(280, 0.018);
     this.beep(180, 0.20, "triangle", 0.08);
     this.addScore(3000, x, y);
+    this.floatingText(x, y - 95, "+3000 BOSS BONUS", "#ffe891");
     this.boss.destroy();
     this.boss = null;
     if (this.bossAura) this.bossAura.destroy();
@@ -954,6 +1022,10 @@ class GameScene extends Phaser.Scene {
     this.hazards.clear(true, true);
     this.bossActive = false;
     this.setBossUi(false);
+    if (this.level < 3) {
+      this.lives = this.maxLives || DIFFICULTY[this.selectedDifficulty].startLives;
+      this.showToast("MARVINS LIV ER FYLDT OP!");
+    }
     if (this.level >= 3) {
       this.showCenterMessage("SEJR!", "Marvin slog hele verden!", 1600);
       this.time.delayedCall(1700, () => this.finishGame(true));
@@ -998,7 +1070,7 @@ class GameScene extends Phaser.Scene {
     if (this.gameState !== "playing") return;
     if (this.time.now < this.invincibleUntil) return;
     if (danger && danger.hazardType === "oil") {
-      this.slowMotionUntil = this.time.now + 2200;
+      this.playerSlowUntil = this.time.now + 2200;
       this.showToast("OLIE PÅ BANEN! MARVIN BLIVER LANGSOM");
       return;
     }
@@ -1041,6 +1113,98 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  updatePowerups(time, delta) {
+    const dt = delta / 1000;
+    this.powerups.children.iterate(drop => {
+      if (!drop || !drop.active) return;
+
+      let vx = drop.powerupVx || 0;
+      let vy = drop.powerupVy || 0;
+
+      if (time < this.magnetUntil) {
+        const angle = Phaser.Math.Angle.Between(drop.x, drop.y, this.player.x, this.player.y);
+        vx += Math.cos(angle) * 120;
+        vy += Math.sin(angle) * 120;
+      }
+
+      const nextX = drop.x + vx * dt;
+      const nextY = drop.y + vy * dt;
+      drop.setPosition(nextX, nextY);
+      if (drop.body && drop.body.reset) drop.body.reset(nextX, nextY);
+    });
+  }
+
+  applyLevelTheme() {
+    if (!this.themeOverlay) return;
+    let color = 0x1e8cff;
+    let alpha = 0.05;
+    let name = "TVED STADION";
+
+    if (this.level === 2) {
+      color = 0xff4bd8;
+      alpha = 0.075;
+      name = "DISCO-STADION";
+    } else if (this.level >= 3) {
+      color = 0x8bd8ff;
+      alpha = 0.085;
+      name = "CYKELVÆRKSTED-KAOS";
+    }
+
+    this.themeOverlay.setFillStyle(color, alpha);
+    if (this.themeNameText) {
+      this.themeNameText.setText(name).setAlpha(1);
+      this.tweens.add({ targets: this.themeNameText, alpha: 0, duration: 1800, delay: 1200 });
+    }
+  }
+
+  showBossIntro(data) {
+    const intro = this.add.container(0, 0).setDepth(900);
+    const dark = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.62);
+    const small = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 82, "BOSS INDKOMMEN", {
+      fontFamily: "Arial", fontSize: 22, color: "#bee4ff", fontStyle: "bold",
+      stroke: "#000000", strokeThickness: 4
+    }).setOrigin(0.5);
+    const big = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, data.name, {
+      fontFamily: "Arial", fontSize: 34, color: "#ffffff", fontStyle: "bold", align: "center",
+      stroke: "#000000", strokeThickness: 6, wordWrap: { width: 420 }
+    }).setOrigin(0.5);
+    const sub = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 54, data.intro, {
+      fontFamily: "Arial", fontSize: 16, color: "#ffe891", align: "center", wordWrap: { width: 390 }
+    }).setOrigin(0.5);
+    intro.add([dark, small, big, sub]);
+    intro.setAlpha(0);
+
+    this.tweens.add({ targets: intro, alpha: 1, duration: 350 });
+    this.time.delayedCall(1550, () => {
+      this.tweens.add({ targets: intro, alpha: 0, duration: 320, onComplete: () => intro.destroy(true) });
+      if (this.gameState === "playing") this.spawnBoss(data);
+    });
+  }
+
+  spawnVictoryConfetti() {
+    for (let i = 0; i < 70; i++) {
+      const colors = [0xff5b78, 0xffe36a, 0x79e7ff, 0x69ff9c, 0xffffff];
+      const confetti = this.add.rectangle(
+        Phaser.Math.Between(20, GAME_WIDTH - 20),
+        Phaser.Math.Between(-120, -10),
+        Phaser.Math.Between(4, 9),
+        Phaser.Math.Between(8, 16),
+        Phaser.Utils.Array.GetRandom(colors),
+        1
+      ).setDepth(910);
+
+      this.tweens.add({
+        targets: confetti,
+        y: GAME_HEIGHT + 70,
+        x: confetti.x + Phaser.Math.Between(-80, 80),
+        rotation: Phaser.Math.FloatBetween(-5, 5),
+        duration: Phaser.Math.Between(1800, 3600),
+        delay: Phaser.Math.Between(0, 900),
+        onComplete: () => confetti.destroy()
+      });
+    }
+  }
+
   updateProjectiles(delta) {
     const dt = delta / 1000;
 
@@ -1054,9 +1218,6 @@ class GameScene extends Phaser.Scene {
         const nextX = obj.x + vx * dt;
         const nextY = obj.y + vy * dt;
 
-        // Vigtigt GitHub/Phaser-fix:
-        // Brug Phasers egne sync-metoder i stedet for at skrive direkte til body.x/body.y.
-        // Det holder sprite og physics-body låst sammen på både Live Server og GitHub Pages.
         obj.setPosition(nextX, nextY);
 
         if (obj.body && obj.body.reset) {
@@ -1149,11 +1310,16 @@ class GameScene extends Phaser.Scene {
     const elapsed = this.runStartedAt ? Math.floor((this.time.now - this.runStartedAt) / 1000) : 0;
     const doubleLeft = Math.max(0, Math.ceil((this.doubleLaserUntil - this.time.now) / 1000));
     const slowLeft = Math.max(0, Math.ceil((this.slowMotionUntil - this.time.now) / 1000));
+    const speedLeft = Math.max(0, Math.ceil((this.speedBoostUntil - this.time.now) / 1000));
+    const megaLeft = Math.max(0, Math.ceil((this.megaLaserUntil - this.time.now) / 1000));
     let power = `Skjold: ${this.shieldActive ? "ON" : "OFF"} · SUPER: ${this.superReady ? "KLAR" : "LADER"}`;
     if (doubleLeft > 0) power += `\n2X Laser: ${doubleLeft}s`;
+    if (megaLeft > 0) power += ` · Mega: ${megaLeft}s`;
+    if (speedLeft > 0) power += ` · Lynsko: ${speedLeft}s`;
     if (slowLeft > 0) power += ` · Fløjte: ${slowLeft}s`;
     this.scoreText.setText(`Score: ${this.score}`);
-    this.livesText.setText(`Lives: ${"♥".repeat(Math.max(0, this.lives))}`);
+    this.livesText.setText(`Liv: ${this.lives}/${this.maxLives || DIFFICULTY[this.selectedDifficulty].startLives}`);
+    this.lifeHeartText.setText("♥".repeat(Math.max(0, this.lives)));
     this.waveText.setText(`Level ${this.level}${this.bossActive ? " · Bosskamp" : ` · Wave ${Math.max(1, this.wave)}`} · ${DIFFICULTY[this.selectedDifficulty].label}`);
     this.powerText.setText(power);
     this.statsText.setText(`High: ${this.highScore}\nTid: ${this.formatTime(elapsed)}`);
@@ -1185,8 +1351,9 @@ class GameScene extends Phaser.Scene {
     if (this.endContainer) this.endContainer.destroy(true);
     this.endContainer = this.add.container(0, 0).setDepth(850);
     const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 430, 420, 0x000000, 0.85).setStrokeStyle(3, 0x85dfff, 0.35);
+    if (won) this.spawnVictoryConfetti();
     const heading = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150, won ? "SEJR!" : "GAME OVER", { fontFamily: "Arial", fontSize: 40, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
-    const subtitle = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 92, won ? "Marvin slog hele verden på Tved Stadion!" : "Verden vandt denne gang.", { fontFamily: "Arial", fontSize: 17, color: "#bee4ff", align: "center", wordWrap: { width: 365 } }).setOrigin(0.5);
+    const subtitle = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 92, won ? "MARVIN REDDEDE TVED STADION!" : "Verden vandt denne gang.", { fontFamily: "Arial", fontSize: 17, color: won ? "#ffe891" : "#bee4ff", align: "center", wordWrap: { width: 365 }, fontStyle: "bold" }).setOrigin(0.5);
     const scoreLine = `Jeg fik ${this.score} point i Marvin mod verden (${DIFFICULTY[this.selectedDifficulty].label})!`;
     const stats = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 10, `Score: ${this.score}\nTid: ${this.formatTime(elapsed)}\nHits taget: ${this.hitsTaken}\nHighscore: ${this.highScore}`, { fontFamily: "Arial", fontSize: 18, color: "#ffe891", align: "center", lineSpacing: 5 }).setOrigin(0.5);
     const copy = this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 88, 220, 44, "KOPIÉR SCORE", 17);

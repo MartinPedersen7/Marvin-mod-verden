@@ -1,37 +1,17 @@
-# Marvin mod verden - Clean GitHub Pages version
+# Marvin mod verden - v4.7 safe upgrade
 
-Dette er en ren GitHub Pages-version uden aktiv PWA/service worker.
+Clean GitHub Pages-version uden service worker/PWA-cache.
 
-## Filer der skal ligge i roden
+Nyt i v4.7:
 
-- `index.html`
-- `style.css`
-- `game.js`
-- `README.md`
-- `clear-cache.html`
-- `.nojekyll`
-- `assets/`
+- Powerups falder nu manuelt og bør ikke sidde fast i luften
+- Færre powerups
+- Nye powerups: Lynsko og Mega-laser
+- Flere fjendetyper: hurtig rød bold og sort tank-bold
+- Mere synlige liv/hjerter
+- Liv fyldes op efter boss
+- Tema-overlay per level
+- Langsom boss-intro
+- Bedre sejrsskærm med konfetti
 
-## Vigtigt ved upload til GitHub
-
-Slet disse filer fra repoet, hvis de stadig findes fra tidligere versioner:
-
-- `service-worker.js`
-- `manifest.json`
-- `.github/workflows/static.yml` hvis du ikke vil bruge GitHub Actions manuelt
-
-GitHub Pages kan fortsat stå til:
-
-- Source: Deploy from a branch
-- Branch: main
-- Folder: /root
-
-## Efter push
-
-Besøg denne side én gang for at rydde gammel service worker/cache:
-
-`https://martinpedersen7.github.io/Marvin-mod-verden/clear-cache.html`
-
-Derefter spil via:
-
-`https://martinpedersen7.github.io/Marvin-mod-verden/`
+Upload rodfilerne til GitHub Pages-repoet og behold clean setup uden service-worker.js og manifest.json.
