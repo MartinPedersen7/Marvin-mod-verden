@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 5.1 komplet boss-turnering
+// Marvin mod verden - Version 5.2 komplet boss-turnering
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -438,6 +438,9 @@ class GameScene extends Phaser.Scene {
     this.superCooldownUntil = 0;
     this.waitingForNextWave = false;
     this.bossIntroActive = false;
+    this.bossDefeatTransition = false;
+    this.bossStartedForLevel = 0;
+    this.lastWaveStartedAt = 0;
     if (this.nextWaveTimer) {
       this.nextWaveTimer.remove(false);
       this.nextWaveTimer = null;
@@ -593,6 +596,8 @@ class GameScene extends Phaser.Scene {
     this.wave = 0;
     this.waitingForNextWave = true;
     this.bossIntroActive = false;
+    this.bossDefeatTransition = false;
+    this.lastWaveStartedAt = 0;
     if (this.nextWaveTimer) this.nextWaveTimer.remove(false);
     this.showCenterMessage("MARVIN MOD VERDEN", "Tved Stadion er klar!", 1400);
     this.nextWaveTimer = this.time.delayedCall(1200, () => {
@@ -648,12 +653,13 @@ class GameScene extends Phaser.Scene {
     this.cleanupObjects();
     this.updateHud();
 
-    if (!this.bossActive && !this.bossIntroActive && !this.waitingForNextWave && this.wave > 0 && this.enemies.countActive(true) === 0 && !this.upgradeContainer) {
+    const waveHasBeenVisibleLongEnough = this.lastWaveStartedAt === 0 || time - this.lastWaveStartedAt > 1400;
+    if (!this.bossActive && !this.bossIntroActive && !this.bossDefeatTransition && !this.waitingForNextWave && waveHasBeenVisibleLongEnough && this.wave > 0 && this.enemies.countActive(true) === 0 && !this.upgradeContainer) {
       this.waitingForNextWave = true;
       if (this.nextWaveTimer) this.nextWaveTimer.remove(false);
       this.nextWaveTimer = this.time.delayedCall(900, () => {
         this.nextWaveTimer = null;
-        if (this.gameState !== "playing") return;
+        if (this.gameState !== "playing" || this.bossDefeatTransition) return;
         if (this.wave >= 3) this.startBoss();
         else this.startNextWave();
       });
@@ -734,7 +740,11 @@ class GameScene extends Phaser.Scene {
   }
 
   startNextWave() {
-    if (this.gameState !== "playing" || this.bossActive || this.bossIntroActive) return;
+    if (this.gameState !== "playing" || this.bossActive || this.bossIntroActive || this.bossDefeatTransition) return;
+    if (this.nextWaveTimer) {
+      this.nextWaveTimer.remove(false);
+      this.nextWaveTimer = null;
+    }
     if (this.wave >= 3) {
       this.startBoss();
       return;
@@ -742,6 +752,7 @@ class GameScene extends Phaser.Scene {
 
     this.waitingForNextWave = false;
     this.wave += 1;
+    this.lastWaveStartedAt = this.time.now;
     this.applyLevelTheme();
     if (this.wave === 1) this.showToast("Hold SKYD nede mens du styrer");
 
@@ -950,7 +961,9 @@ class GameScene extends Phaser.Scene {
   }
 
   startBoss() {
-    if (this.gameState !== "playing" || this.bossActive || this.bossIntroActive) return;
+    if (this.gameState !== "playing" || this.bossActive || this.bossIntroActive || this.bossDefeatTransition) return;
+    if (this.bossStartedForLevel === this.level) return;
+    this.bossStartedForLevel = this.level;
     this.bossIntroActive = true;
     this.bossActive = true;
     this.waitingForNextWave = false;
@@ -1028,12 +1041,7 @@ class GameScene extends Phaser.Scene {
       this.bossLastSpecial = time;
       this.spawnWarningBeam(this.boss.x, 0x66ff8e);
     }
-    if (hpPct < 0.32 && time - this.bossLastMinion > 3200) {
-      this.bossLastMinion = time;
-      this.cameras.main.shake(160, 0.011);
-      this.spawnEnemy(78, 185, "normal");
-      this.spawnEnemy(GAME_WIDTH - 78, 195, "wobbler");
-    }
+    // Gormi-Zilla spawner ikke længere ekstra bolde midt i bosskampen.
   }
 
 
@@ -1175,6 +1183,9 @@ class GameScene extends Phaser.Scene {
     this.hazards.clear(true, true);
     this.powerups.clear(true, true);
     this.bossActive = false;
+    this.bossIntroActive = false;
+    this.bossDefeatTransition = true;
+    this.waitingForNextWave = true;
     this.setBossUi(false);
 
     this.lives = this.maxLives || DIFFICULTY[this.selectedDifficulty].startLives;
@@ -1191,6 +1202,7 @@ class GameScene extends Phaser.Scene {
 
   showUpgradeChoice() {
     if (this.gameState !== "playing") return;
+    this.bossDefeatTransition = false;
     this.physics.pause();
     this.gameState = "upgrade";
     this.upgradeContainer = this.add.container(0, 0).setDepth(780);
@@ -1213,6 +1225,9 @@ class GameScene extends Phaser.Scene {
         this.wave = 0;
         this.waitingForNextWave = true;
         this.bossIntroActive = false;
+        this.bossActive = false;
+        this.bossDefeatTransition = false;
+        this.lastWaveStartedAt = 0;
         this.gameState = "playing";
         this.physics.resume();
         if (this.nextWaveTimer) this.nextWaveTimer.remove(false);
@@ -1337,7 +1352,7 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: intro, alpha: 1, duration: 450 });
     this.time.delayedCall(4200, () => {
       this.tweens.add({ targets: intro, alpha: 0, duration: 450, onComplete: () => intro.destroy(true) });
-      if (this.gameState === "playing" && this.bossActive) {
+      if (this.gameState === "playing" && this.bossActive && !this.bossDefeatTransition && this.bossStartedForLevel === this.level) {
         this.bossIntroActive = false;
         this.spawnBoss(data);
       } else {

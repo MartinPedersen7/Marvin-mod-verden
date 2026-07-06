@@ -1,54 +1,20 @@
-# Marvin mod verden v5.1.0 - komplet boss-turnering
+# Marvin mod verden - v5.2 komplet fix
 
 Clean GitHub Pages-version uden service worker/PWA-cache.
 
-## Nyt i v5.1.0
+## Rettelser i v5.2
 
-- 5 bosser i fast rækkefølge:
-  1. Gormi-Zilla - Tved Stadion
-  2. Kimi-Kaze - Omklædningsrummet
-  3. Ricko Royal - Pokerbordet
-  4. Michaels Cykelsme' - Sports-pubben
-  5. Frisko-Dasko - Diskoteket
-- 3 waves før hver boss.
-- Wave-counter starter korrekt på Wave 1.
-- Længere boss-intro.
-- Nye baggrunde til alle baner.
-- Nye boss-sprites: Ricko Royal og Kimi-Kaze.
-- Powerups falder manuelt og burde ikke sidde fast.
-- Færre powerups.
-- Synligt livsystem.
-- Marvin får fyldt liv op efter hver boss.
-- Bevarer det fungerende skud/projektil-fix fra v4.6/v4.7.
+- Wave starter korrekt på Wave 1.
+- Ekstra boss-intro efter Kimi-Kaze er blokeret.
+- Flow efter boss 2 er låst, så spillet kan fortsætte til bane 3.
+- Boss-defeat transition er beskyttet, så samme boss ikke kan starte igen imens opgraderingsmenuen venter.
+- Gormi-Zilla spawner ikke længere ekstra almindelige bolde midt i bosskampen.
+- Nye 96x96 RGBA-bolde med gennemsigtig baggrund.
+- index.html loader game.js?v=5-2.
 
-## Upload til GitHub Pages
+## Upload
 
-Læg alle filer i roden af repoet:
+Læg alle filer fra denne mappe direkte i roden af repoet.
+Slet fortsat service-worker.js og manifest.json, hvis de ligger der.
 
-- `index.html`
-- `style.css`
-- `game.js`
-- `README.md`
-- `clear-cache.html`
-- `.nojekyll`
-- `assets/`
-
-Slet stadig disse filer, hvis de findes:
-
-- `service-worker.js`
-- `manifest.json`
-
-Efter push kan du besøge:
-
-`https://martinpedersen7.github.io/Marvin-mod-verden/clear-cache.html`
-
-Derefter spil:
-
-`https://martinpedersen7.github.io/Marvin-mod-verden/`
-
-
-## v5.1 fix
-- Wave starter nu korrekt på Wave 1.
-- Dobbelt boss-intro er låst væk.
-- Spilflow efter boss 2 er gjort mere robust.
-- Nye transparente 96x96 fodbold-PNGer uden hvid baggrund.
+Efter push kan du åbne clear-cache.html én gang.
