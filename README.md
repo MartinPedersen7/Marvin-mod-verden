@@ -1,8 +1,8 @@
-# Marvin mod verden - v5.3 komplet fix
+# Marvin mod verden - v5.4 komplet fix
 
 Clean GitHub Pages-version uden service worker/PWA-cache.
 
-## Rettelser i v5.3
+## Rettelser i v5.4
 
 - Wave starter korrekt på Wave 1.
 - Ekstra boss-intro efter Kimi-Kaze er blokeret.
@@ -20,10 +20,17 @@ Slet fortsat service-worker.js og manifest.json, hvis de ligger der.
 Efter push kan du åbne clear-cache.html én gang.
 
 
-## v5.3 rettelser
+## v5.4 rettelser
 
 - SUPER viser ikke længere tekst-popup.
 - Opgraderingsknapper er gjort tydeligere.
 - Opgraderinger har større effekt.
 - NORMAL og KAOS er gjort tydeligt sværere end NEM.
 - Klar til næste trin: Supabase leaderboard i v5.4.
+
+
+## v5.4 Leaderboard
+
+Denne version har Supabase leaderboard. Scores sendes kun ved sejr.
+
+Supabase table: `leaderboard` med kolonnerne `player_name`, `score`, `difficulty`, `time_seconds`, `hits_taken`, `created_at`.
