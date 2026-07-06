@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 5.5 Supabase leaderboard + nyt app-logo + bedre pausemenu
+// Marvin mod verden - Version 5.6 LIVE scorebalance + leaderboard
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -22,6 +22,16 @@ const SUPABASE = {
 };
 
 const LEADERBOARD_ENABLED = Boolean(SUPABASE.url && SUPABASE.anonKey);
+
+const SCORE_RULES = {
+  easy: { multiplier: 1.0, completionBonus: 5000, label: "x1.0" },
+  normal: { multiplier: 1.5, completionBonus: 10000, label: "x1.5" },
+  chaos: { multiplier: 2.25, completionBonus: 20000, label: "x2.25" }
+};
+
+function clampInt(value, min, max) {
+  return Math.max(min, Math.min(max, Math.floor(Number(value) || 0)));
+}
 
 const DIFFICULTY = {
   easy: {
@@ -416,6 +426,9 @@ class GameScene extends Phaser.Scene {
     const difficulty = DIFFICULTY[this.selectedDifficulty];
     if (resetScore) {
       this.score = 0;
+      this.baseScore = 0;
+      this.scoreBreakdown = null;
+      this.scoreSubmittedThisRun = false;
       this.maxLives = difficulty.startLives;
       this.lives = this.maxLives;
       this.level = 1;
@@ -429,6 +442,8 @@ class GameScene extends Phaser.Scene {
 
     // Sikker initialisering til menuen, så HUD aldrig viser undefined/NaN.
     if (typeof this.score !== "number") this.score = 0;
+    if (typeof this.baseScore !== "number") this.baseScore = this.score || 0;
+    if (typeof this.scoreSubmittedThisRun !== "boolean") this.scoreSubmittedThisRun = false;
     if (typeof this.maxLives !== "number") this.maxLives = difficulty.startLives;
     if (typeof this.lives !== "number") this.lives = this.maxLives;
     if (typeof this.level !== "number") this.level = 1;
@@ -499,7 +514,7 @@ class GameScene extends Phaser.Scene {
     const title = this.add.text(GAME_WIDTH / 2, 190, "MARVIN\nMOD VERDEN", {
       fontFamily: "Arial", fontSize: 38, color: "#ffffff", fontStyle: "bold", align: "center", lineSpacing: -8
     }).setOrigin(0.5);
-    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.5 · Leaderboard\n5 bosser · 3 waves før hver boss", {
+    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.6 · LIVE\nSværere niveau giver højere score", {
       fontFamily: "Arial", fontSize: 16, color: "#bee4ff", align: "center"
     }).setOrigin(0.5);
 
@@ -508,7 +523,8 @@ class GameScene extends Phaser.Scene {
       { fontFamily: "Arial", fontSize: 17, color: "#ffe891", align: "center", lineSpacing: 5 }
     ).setOrigin(0.5);
 
-    const diffTitle = this.add.text(GAME_WIDTH / 2, 455, "Sværhedsgrad", { fontFamily: "Arial", fontSize: 16, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
+    const diffTitle = this.add.text(GAME_WIDTH / 2, 448, "Sværhedsgrad", { fontFamily: "Arial", fontSize: 16, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
+    const scoreHint = this.add.text(GAME_WIDTH / 2, 469, "NEM x1.0 · NORMAL x1.5 · KAOS x2.25", { fontFamily: "Arial", fontSize: 12, color: "#ffe891", align: "center" }).setOrigin(0.5);
     const diffButtons = [];
     const names = ["easy", "normal", "chaos"];
     names.forEach((name, i) => {
@@ -538,7 +554,7 @@ class GameScene extends Phaser.Scene {
     const leaderboard = this.makeButton(GAME_WIDTH / 2, 750, 220, 38, "LEADERBOARD", 15);
     leaderboard.bg.on("pointerdown", () => this.showLeaderboardOverlay());
 
-    this.menuContainer.add([panel, title, sub, stats, diffTitle, start.bg, start.label, how.bg, how.label, sound.bg, sound.label, leaderboard.bg, leaderboard.label]);
+    this.menuContainer.add([panel, title, sub, stats, diffTitle, scoreHint, start.bg, start.label, how.bg, how.label, sound.bg, sound.label, leaderboard.bg, leaderboard.label]);
     diffButtons.forEach(btn => this.menuContainer.add([btn.bg, btn.label]));
   }
 
@@ -1460,19 +1476,67 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  getScoreRule() {
+    return SCORE_RULES[this.selectedDifficulty] || SCORE_RULES.normal;
+  }
+
+  getRunningScore() {
+    const rule = this.getScoreRule();
+    return Math.max(0, Math.round((this.baseScore || 0) * rule.multiplier));
+  }
+
+  getHitBonus() {
+    if (this.hitsTaken <= 0) return 10000;
+    if (this.hitsTaken <= 2) return 5000;
+    if (this.hitsTaken <= 5) return 2000;
+    return 0;
+  }
+
+  getTimeBonus(elapsed) {
+    if (elapsed <= 360) return 15000;
+    if (elapsed <= 480) return 10000;
+    if (elapsed <= 600) return 5000;
+    return 0;
+  }
+
+  calculateFinalScoreBreakdown(elapsed) {
+    const rule = this.getScoreRule();
+    const base = Math.max(0, Math.floor(this.baseScore || 0));
+    const difficultyScore = Math.round(base * rule.multiplier);
+    const completionBonus = rule.completionBonus;
+    const hitBonus = this.getHitBonus();
+    const timeBonus = this.getTimeBonus(elapsed);
+    const total = difficultyScore + completionBonus + hitBonus + timeBonus;
+
+    return {
+      base,
+      multiplier: rule.multiplier,
+      multiplierLabel: rule.label,
+      difficultyScore,
+      completionBonus,
+      hitBonus,
+      timeBonus,
+      total
+    };
+  }
+
   addScore(points, x = null, y = null) {
     if (this.time.now > this.comboUntil) this.combo = 0;
     this.combo += 1;
     this.comboUntil = this.time.now + 1350;
-    const bonus = this.combo >= 4 ? this.combo * 10 : 0;
-    this.score += points + bonus;
+    const comboBonus = this.combo >= 4 ? this.combo * 10 : 0;
+    const baseAward = points + comboBonus;
+    this.baseScore += baseAward;
+    this.score = this.getRunningScore();
+
     if (this.score > this.highScore) {
       this.highScore = this.score;
       localStorage.setItem(STORAGE.highScore, String(this.highScore));
     }
     if (x !== null && y !== null) {
-      this.floatingText(x, y, `+${points + bonus}`, bonus ? "#ffe891" : "#ffffff");
-      if (bonus) this.floatingText(GAME_WIDTH / 2, 178, `KOMBO x${this.combo}`, "#ffe891");
+      const displayAward = Math.round(baseAward * this.getScoreRule().multiplier);
+      this.floatingText(x, y, `+${displayAward}`, comboBonus ? "#ffe891" : "#ffffff");
+      if (comboBonus) this.floatingText(GAME_WIDTH / 2, 178, `KOMBO x${this.combo}`, "#ffe891");
     }
   }
 
@@ -1543,6 +1607,12 @@ class GameScene extends Phaser.Scene {
     this.physics.pause();
     const elapsed = Math.floor((this.time.now - this.runStartedAt) / 1000);
     if (won) {
+      this.scoreBreakdown = this.calculateFinalScoreBreakdown(elapsed);
+      this.score = this.scoreBreakdown.total;
+      if (this.score > this.highScore) {
+        this.highScore = this.score;
+        localStorage.setItem(STORAGE.highScore, String(this.highScore));
+      }
       this.totalWins += 1;
       localStorage.setItem(STORAGE.wins, String(this.totalWins));
       if (!this.bestTime || elapsed < Number(this.bestTime)) {
@@ -1553,6 +1623,9 @@ class GameScene extends Phaser.Scene {
         this.bestHits = String(this.hitsTaken);
         localStorage.setItem(STORAGE.bestHits, this.bestHits);
       }
+    } else {
+      this.score = this.getRunningScore();
+      this.scoreBreakdown = null;
     }
     this.showEndScreen(won, elapsed);
   }
@@ -1563,7 +1636,7 @@ class GameScene extends Phaser.Scene {
     this.leaderboardLastError = null;
 
     try {
-      const endpoint = `${SUPABASE.url}/rest/v1/${SUPABASE.table}?select=player_name,score,difficulty,time_seconds,hits_taken,created_at&order=score.desc,time_seconds.asc&limit=10`;
+      const endpoint = `${SUPABASE.url}/rest/v1/${SUPABASE.table}?select=player_name,score,difficulty,time_seconds,hits_taken,created_at&order=score.desc,time_seconds.asc,hits_taken.asc&limit=10`;
       const response = await fetch(endpoint, {
         headers: {
           apikey: SUPABASE.anonKey,
@@ -1597,12 +1670,16 @@ class GameScene extends Phaser.Scene {
       return false;
     }
 
+    const safeElapsed = clampInt(elapsed, 60, 7200);
+    const safeScore = clampInt(this.score, 0, 10000000);
+    const safeHits = clampInt(this.hitsTaken, 0, 999);
+
     const payload = {
       player_name: cleanName,
-      score: Math.max(0, Math.floor(this.score || 0)),
+      score: safeScore,
       difficulty: DIFFICULTY[this.selectedDifficulty].label,
-      time_seconds: Math.max(0, Math.floor(elapsed || 0)),
-      hits_taken: Math.max(0, Math.floor(this.hitsTaken || 0))
+      time_seconds: safeElapsed,
+      hits_taken: safeHits
     };
 
     try {
@@ -1630,15 +1707,16 @@ class GameScene extends Phaser.Scene {
 
   getLeaderboardText() {
     if (this.leaderboardLoading) return "Henter leaderboard...";
-    if (this.leaderboardLastError) return `Kunne ikke hente leaderboard.\n${this.leaderboardLastError}`;
-    if (!this.leaderboardEntries || this.leaderboardEntries.length === 0) return "Ingen scores endnu.\nBliv den første Marvin-mester!";
+    if (this.leaderboardLastError) return "Leaderboard kunne ikke hentes lige nu.\nPrøv igen om lidt.";
+    if (!this.leaderboardEntries || this.leaderboardEntries.length === 0) return "Ingen scores endnu.\nKun gennemførte spil tæller.\nBliv den første Marvin-mester!";
 
     return this.leaderboardEntries.map((entry, index) => {
-      const name = String(entry.player_name || "Ukendt").slice(0, 18);
+      const name = String(entry.player_name || "Ukendt").slice(0, 16);
       const score = Number(entry.score || 0);
       const difficulty = String(entry.difficulty || "-").slice(0, 8);
       const time = this.formatTime(Number(entry.time_seconds || 0));
-      return `${index + 1}. ${name} · ${score} · ${difficulty} · ${time}`;
+      const hits = Number(entry.hits_taken || 0);
+      return `${index + 1}. ${name} · ${score} · ${difficulty} · ${time} · ${hits} hit`;
     }).join("\n");
   }
 
@@ -1672,48 +1750,102 @@ class GameScene extends Phaser.Scene {
   showEndScreen(won, elapsed) {
     if (this.endContainer) this.endContainer.destroy(true);
     this.endContainer = this.add.container(0, 0).setDepth(850);
-    const panelHeight = won ? 510 : 420;
-    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 430, panelHeight, 0x000000, 0.85).setStrokeStyle(3, 0x85dfff, 0.35);
+    const panelHeight = won ? 620 : 420;
+    const panel = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 440, panelHeight, 0x000000, 0.86).setStrokeStyle(3, 0x85dfff, 0.35);
     if (won) this.spawnVictoryConfetti();
-    const heading = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 190, won ? "SEJR!" : "GAME OVER", { fontFamily: "Arial", fontSize: 40, color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
-    const subtitle = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 132, won ? "MARVIN KLAREDE HELE BOSS-TURNERINGEN!" : "Verden vandt denne gang.", { fontFamily: "Arial", fontSize: 17, color: won ? "#ffe891" : "#bee4ff", align: "center", wordWrap: { width: 365 }, fontStyle: "bold" }).setOrigin(0.5);
-    const scoreLine = `Jeg fik ${this.score} point i Marvin mod verden (${DIFFICULTY[this.selectedDifficulty].label})!`;
-    const stats = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 42, `Score: ${this.score}\nSværhedsgrad: ${DIFFICULTY[this.selectedDifficulty].label}\nTid: ${this.formatTime(elapsed)}\nHits taget: ${this.hitsTaken}\nHighscore: ${this.highScore}`, { fontFamily: "Arial", fontSize: 17, color: "#ffe891", align: "center", lineSpacing: 4 }).setOrigin(0.5);
 
-    let y = won ? GAME_HEIGHT / 2 + 70 : GAME_HEIGHT / 2 + 88;
+    const heading = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 268, won ? "SEJR!" : "GAME OVER", {
+      fontFamily: "Arial", fontSize: 38, color: "#ffffff", fontStyle: "bold"
+    }).setOrigin(0.5);
 
+    const difficultyLabel = DIFFICULTY[this.selectedDifficulty].label;
+    const subtitle = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 214,
+      won ? `${difficultyLabel} GENNEMFØRT!` : "Verden vandt denne gang.",
+      { fontFamily: "Arial", fontSize: 18, color: won ? "#ffe891" : "#bee4ff", align: "center", wordWrap: { width: 380 }, fontStyle: "bold" }
+    ).setOrigin(0.5);
+
+    const breakdown = this.scoreBreakdown || this.calculateFinalScoreBreakdown(elapsed);
+    const scoreLine = `Jeg fik ${this.score} point i Marvin mod verden (${difficultyLabel})!`;
+
+    let statsText;
     if (won) {
-      const sendScore = this.makeButton(GAME_WIDTH / 2, y, 230, 44, "SEND SCORE", 17);
-      sendScore.bg.on("pointerdown", async () => {
-        const name = window.prompt("Skriv dit navn til leaderboardet:", localStorage.getItem("mmv_last_player_name") || "");
-        if (name === null) return;
-        const clean = String(name).trim().slice(0, 20);
-        if (clean) localStorage.setItem("mmv_last_player_name", clean);
-        sendScore.label.setText("SENDER...");
-        const ok = await this.submitLeaderboardScore(clean, elapsed);
-        sendScore.label.setText(ok ? "SCORE SENDT" : "SEND SCORE");
-        if (ok) this.showLeaderboardOverlay();
-      });
-      this.endContainer.add([sendScore.bg, sendScore.label]);
-      y += 54;
-
-      const leaderboard = this.makeButton(GAME_WIDTH / 2, y, 230, 40, "SE LEADERBOARD", 16);
-      leaderboard.bg.on("pointerdown", () => this.showLeaderboardOverlay());
-      this.endContainer.add([leaderboard.bg, leaderboard.label]);
-      y += 52;
+      statsText =
+        `Grundscore: ${breakdown.base}
+` +
+        `Sværhed: ${breakdown.multiplierLabel} = ${breakdown.difficultyScore}
+` +
+        `Gennemført-bonus: +${breakdown.completionBonus}
+` +
+        `Tidsbonus: +${breakdown.timeBonus}
+` +
+        `Hitbonus: +${breakdown.hitBonus}
+` +
+        `TOTAL: ${breakdown.total}
+` +
+        `Tid: ${this.formatTime(elapsed)} · Hits: ${this.hitsTaken}`;
+    } else {
+      statsText = `Score: ${this.score}
+Sværhedsgrad: ${difficultyLabel}
+Tid: ${this.formatTime(elapsed)}
+Hits taget: ${this.hitsTaken}
+Highscore: ${this.highScore}`;
     }
 
-    const copy = this.makeButton(GAME_WIDTH / 2, y, 220, 40, "KOPIÉR SCORE", 16);
+    const stats = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 92, statsText, {
+      fontFamily: "Arial", fontSize: won ? 15 : 17, color: "#ffe891", align: "center", lineSpacing: 4
+    }).setOrigin(0.5);
+
+    let y = won ? GAME_HEIGHT / 2 + 105 : GAME_HEIGHT / 2 + 88;
+
+    if (won) {
+      const sendScore = this.makeButton(GAME_WIDTH / 2, y, 230, 42, this.scoreSubmittedThisRun ? "SCORE SENDT" : "SEND SCORE", 16);
+      if (this.scoreSubmittedThisRun) {
+        sendScore.bg.disableInteractive();
+        sendScore.bg.setAlpha(0.55);
+        sendScore.label.setAlpha(0.75);
+      } else {
+        sendScore.bg.on("pointerdown", async () => {
+          if (this.scoreSubmittedThisRun) return;
+          const name = window.prompt("Skriv dit navn til leaderboardet:", localStorage.getItem("mmv_last_player_name") || "");
+          if (name === null) return;
+          const clean = String(name).trim().slice(0, 20);
+          if (clean) localStorage.setItem("mmv_last_player_name", clean);
+          sendScore.bg.disableInteractive();
+          sendScore.bg.setAlpha(0.65);
+          sendScore.label.setText("SENDER...");
+          const ok = await this.submitLeaderboardScore(clean, elapsed);
+          if (ok) {
+            this.scoreSubmittedThisRun = true;
+            sendScore.label.setText("SCORE SENDT");
+            this.showToast("Score sendt! Se om du kom i top 10.");
+            this.showLeaderboardOverlay();
+          } else {
+            sendScore.bg.setInteractive();
+            sendScore.bg.setAlpha(1);
+            sendScore.label.setText("SEND SCORE");
+          }
+        });
+      }
+      this.endContainer.add([sendScore.bg, sendScore.label]);
+      y += 50;
+
+      const leaderboard = this.makeButton(GAME_WIDTH / 2, y, 230, 38, "SE LEADERBOARD", 15);
+      leaderboard.bg.on("pointerdown", () => this.showLeaderboardOverlay());
+      this.endContainer.add([leaderboard.bg, leaderboard.label]);
+      y += 48;
+    }
+
+    const copy = this.makeButton(GAME_WIDTH / 2, y, 220, 38, "KOPIÉR SCORE", 15);
     copy.bg.on("pointerdown", () => {
       navigator.clipboard?.writeText(scoreLine).then(() => this.showToast("SCORE KOPIERET"), () => this.showToast(scoreLine));
     });
-    y += 50;
+    y += 47;
 
-    const restart = this.makeButton(GAME_WIDTH / 2, y, 180, 40, "SPIL IGEN", 17);
+    const restart = this.makeButton(GAME_WIDTH / 2, y, 180, 38, "SPIL IGEN", 16);
     restart.bg.on("pointerdown", () => this.startGame());
-    y += 50;
+    y += 47;
 
-    const menu = this.makeButton(GAME_WIDTH / 2, y, 180, 40, "MENU", 17);
+    const menu = this.makeButton(GAME_WIDTH / 2, y, 180, 38, "MENU", 16);
     menu.bg.on("pointerdown", () => { this.endContainer.destroy(true); this.endContainer = null; this.showStartMenu(); });
     this.endContainer.add([panel, heading, subtitle, stats, copy.bg, copy.label, restart.bg, restart.label, menu.bg, menu.label]);
   }
