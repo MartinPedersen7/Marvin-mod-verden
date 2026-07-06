@@ -1,8 +1,8 @@
-# Marvin mod verden v5.0 - komplet boss-turnering
+# Marvin mod verden v5.1.0 - komplet boss-turnering
 
 Clean GitHub Pages-version uden service worker/PWA-cache.
 
-## Nyt i v5.0
+## Nyt i v5.1.0
 
 - 5 bosser i fast rækkefølge:
   1. Gormi-Zilla - Tved Stadion
@@ -45,3 +45,10 @@ Efter push kan du besøge:
 Derefter spil:
 
 `https://martinpedersen7.github.io/Marvin-mod-verden/`
+
+
+## v5.1 fix
+- Wave starter nu korrekt på Wave 1.
+- Dobbelt boss-intro er låst væk.
+- Spilflow efter boss 2 er gjort mere robust.
+- Nye transparente 96x96 fodbold-PNGer uden hvid baggrund.

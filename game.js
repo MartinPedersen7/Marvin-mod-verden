@@ -1,4 +1,4 @@
-// Marvin mod verden - Version 5.0 komplet boss-turnering
+// Marvin mod verden - Version 5.1 komplet boss-turnering
 // Mobil-først browser-spil lavet med Phaser.js via CDN.
 // Denne fil er komplet og kan overskrive den eksisterende game.js.
 
@@ -437,6 +437,11 @@ class GameScene extends Phaser.Scene {
     this.superReady = true;
     this.superCooldownUntil = 0;
     this.waitingForNextWave = false;
+    this.bossIntroActive = false;
+    if (this.nextWaveTimer) {
+      this.nextWaveTimer.remove(false);
+      this.nextWaveTimer = null;
+    }
     this.bossActive = false;
     this.boss = null;
     this.bossAura = null;
@@ -478,7 +483,7 @@ class GameScene extends Phaser.Scene {
     const title = this.add.text(GAME_WIDTH / 2, 190, "MARVIN\nMOD VERDEN", {
       fontFamily: "Arial", fontSize: 38, color: "#ffffff", fontStyle: "bold", align: "center", lineSpacing: -8
     }).setOrigin(0.5);
-    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.0 · Boss-turnering\n5 bosser · 3 waves før hver boss", {
+    const sub = this.add.text(GAME_WIDTH / 2, 285, "Version 5.1 · Boss-turnering\n5 bosser · 3 waves før hver boss", {
       fontFamily: "Arial", fontSize: 16, color: "#bee4ff", align: "center"
     }).setOrigin(0.5);
 
@@ -585,8 +590,15 @@ class GameScene extends Phaser.Scene {
     this.gameState = "playing";
     this.physics.resume();
     this.runStartedAt = this.time.now;
+    this.wave = 0;
+    this.waitingForNextWave = true;
+    this.bossIntroActive = false;
+    if (this.nextWaveTimer) this.nextWaveTimer.remove(false);
     this.showCenterMessage("MARVIN MOD VERDEN", "Tved Stadion er klar!", 1400);
-    this.time.delayedCall(1050, () => { if (this.gameState === "playing") this.startNextWave(); });
+    this.nextWaveTimer = this.time.delayedCall(1200, () => {
+      this.nextWaveTimer = null;
+      if (this.gameState === "playing") this.startNextWave();
+    });
   }
 
   pauseGame() {
@@ -636,9 +648,15 @@ class GameScene extends Phaser.Scene {
     this.cleanupObjects();
     this.updateHud();
 
-    if (!this.bossActive && !this.waitingForNextWave && this.enemies.countActive(true) === 0 && !this.upgradeContainer) {
+    if (!this.bossActive && !this.bossIntroActive && !this.waitingForNextWave && this.wave > 0 && this.enemies.countActive(true) === 0 && !this.upgradeContainer) {
       this.waitingForNextWave = true;
-      this.time.delayedCall(900, () => { if (this.gameState === "playing") this.startNextWave(); });
+      if (this.nextWaveTimer) this.nextWaveTimer.remove(false);
+      this.nextWaveTimer = this.time.delayedCall(900, () => {
+        this.nextWaveTimer = null;
+        if (this.gameState !== "playing") return;
+        if (this.wave >= 3) this.startBoss();
+        else this.startNextWave();
+      });
     }
   }
 
@@ -716,15 +734,16 @@ class GameScene extends Phaser.Scene {
   }
 
   startNextWave() {
-    if (this.gameState !== "playing") return;
+    if (this.gameState !== "playing" || this.bossActive || this.bossIntroActive) return;
+    if (this.wave >= 3) {
+      this.startBoss();
+      return;
+    }
+
     this.waitingForNextWave = false;
     this.wave += 1;
     this.applyLevelTheme();
     if (this.wave === 1) this.showToast("Hold SKYD nede mens du styrer");
-    if (this.wave > 3) {
-      this.startBoss();
-      return;
-    }
 
     const names = ["T-BORG BOLDE", "ZIGZAG-PRES", "STADION STORM"];
     this.showCenterMessage(`LEVEL ${this.level} · WAVE ${this.wave}`, names[this.wave - 1], 1000);
@@ -931,9 +950,14 @@ class GameScene extends Phaser.Scene {
   }
 
   startBoss() {
-    if (this.gameState !== "playing") return;
+    if (this.gameState !== "playing" || this.bossActive || this.bossIntroActive) return;
+    this.bossIntroActive = true;
     this.bossActive = true;
     this.waitingForNextWave = false;
+    if (this.nextWaveTimer) {
+      this.nextWaveTimer.remove(false);
+      this.nextWaveTimer = null;
+    }
     this.enemies.clear(true, true);
     this.enemyBullets.clear(true, true);
     this.hazards.clear(true, true);
@@ -1187,9 +1211,15 @@ class GameScene extends Phaser.Scene {
         this.upgradeContainer = null;
         this.level += 1;
         this.wave = 0;
+        this.waitingForNextWave = true;
+        this.bossIntroActive = false;
         this.gameState = "playing";
         this.physics.resume();
-        this.time.delayedCall(500, () => this.startNextWave());
+        if (this.nextWaveTimer) this.nextWaveTimer.remove(false);
+        this.nextWaveTimer = this.time.delayedCall(650, () => {
+          this.nextWaveTimer = null;
+          if (this.gameState === "playing") this.startNextWave();
+        });
       });
       this.upgradeContainer.add([btn.bg, btn.label]);
     });
@@ -1305,9 +1335,14 @@ class GameScene extends Phaser.Scene {
     intro.setAlpha(0);
 
     this.tweens.add({ targets: intro, alpha: 1, duration: 450 });
-    this.time.delayedCall(3400, () => {
+    this.time.delayedCall(4200, () => {
       this.tweens.add({ targets: intro, alpha: 0, duration: 450, onComplete: () => intro.destroy(true) });
-      if (this.gameState === "playing") this.spawnBoss(data);
+      if (this.gameState === "playing" && this.bossActive) {
+        this.bossIntroActive = false;
+        this.spawnBoss(data);
+      } else {
+        this.bossIntroActive = false;
+      }
     });
   }
 
